@@ -1,6 +1,0 @@
-tags:
-  - cross runtime
-  - runtime
-version: 1.0.0
-runtime:
-  main: pure

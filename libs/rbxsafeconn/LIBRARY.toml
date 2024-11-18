@@ -1,0 +1,10 @@
+tags = [
+    "Players",
+    "CollectionService",
+    "SafePlayerAdded",
+    "TagAdded",
+]
+version = 1
+
+[runtime]
+main = "roblox"

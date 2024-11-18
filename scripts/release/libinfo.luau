@@ -16,7 +16,7 @@ type LibInfo = {
 }
 
 local function libinfo(lib: string): LibInfo
-	return serde.decode("yaml", fs.readFile(`libs/{lib}/LIBRARY.yml`))
+	return serde.decode("toml", fs.readFile(`libs/{lib}/LIBRARY.toml`))
 end
 
 return libinfo

@@ -1,0 +1,10 @@
+tags = [
+    "deeplinking",
+    "format",
+    "url",
+]
+version = "1.0.1"
+
+[runtime]
+main = "pure"
+optional = ["roblox"]

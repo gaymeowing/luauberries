@@ -1,0 +1,8 @@
+tags = [
+    "analytics",
+    "logging",
+]
+version = "1.1.0"
+
+[runtime]
+main = "roblox"

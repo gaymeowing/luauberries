@@ -1,0 +1,9 @@
+tags = [
+    "Badge",
+    "BadgeService",
+    "Wrapper",
+]
+version = "1.0.0"
+
+[runtime]
+main = "roblox"

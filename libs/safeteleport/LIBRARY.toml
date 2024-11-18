@@ -1,0 +1,8 @@
+tags = [
+    "TeleportService",
+    "typed",
+]
+version = "2.0.1"
+
+[runtime]
+main = "roblox"

@@ -1,8 +1,0 @@
-tags:
-  - thumbnail
-  - roblox
-  - rbxthumb
-version: 1.3.0
-runtime:
-  optional: [ roblox ]
-  main: pure
