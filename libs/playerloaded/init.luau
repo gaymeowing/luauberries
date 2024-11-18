@@ -3,10 +3,9 @@
 -- module for handling callbacks to the player loaded remote
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
-local character = require(ReplicatedFirst:WaitForChild("packages"):WaitForChild("character"))
+local character = require("../character")
 
 type PlayerLoadedCallback = (player: Player & { Character: character.Character }) -> ()
 
