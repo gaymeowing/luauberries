@@ -292,8 +292,8 @@ do
 				amount_checked ~= TOTAL_IDS and
 				os.clock() - info.start >= FETCH_DELAY
 			then
+				local check_end = check_start + PAIR_INCREMENT
 				local ids_to_check = info.ids_to_check
-				local check_end = check_start + 9
 
 				table.clear(ids_to_check)
 				info.ids_to_check = table.move(
