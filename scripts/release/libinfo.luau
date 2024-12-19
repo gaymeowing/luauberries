@@ -27,29 +27,30 @@ local FORMAT = string.format
 local FREEZE = table.freeze
 
 local function libinfo(lib: string): LibInfo
- local cached = CACHED_INFOS[lib]
+	local cached = CACHED_INFOS[lib]
  
- if cached then
-  return cached
- else
-  local raw: InternalLibInfo = serde.decode("toml", fs.readFile(FORMAT(LIBINFO_PATH_FORMAT, lib)))
-  local runtime = raw.runtime
+	if cached then
+		return cached
+	else
+		local raw: InternalLibInfo = serde.decode("toml", fs.readFile(FORMAT(LIBINFO_PATH_FORMAT, lib)))
+		local runtime = raw.runtime
 
-  if runtime then
-   if type(runtime) == "string" then
-    runtime = { main = runtime }
-   else
-    local optional = runtime.optional
+		if runtime then
+			if type(runtime) == "string" then
+				runtime = { main = runtime }
+			else
+				local optional = runtime.optional
 
-    if optional then
-     FREEZE(optional)
-    end
-   end
-   raw.runtime = FREEZE(runtime) 
-  end
+				if optional then
+					FREEZE(optional)
+				end
+			end
+			raw.runtime = FREEZE(runtime) 
+		end
 
-  CACHED_INFOS[lib] = FREEZE(raw) :: any
-  return raw :: any
+		CACHED_INFOS[lib] = FREEZE(raw) :: any
+		return raw :: any
+	end
 end
 
 return libinfo
