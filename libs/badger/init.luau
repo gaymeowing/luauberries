@@ -143,17 +143,13 @@ function badger.award(player: Player, badge: Badge): boolean
 	local info = GET_INFO(player)
 	
 	if info then
-		if HAS_BADGE(player, badge, info) then
-			return true
-		else
-			local success = AWARD(BadgeService, player.UserId, badge.id)
-			info = PLAYER_INFOS[player]
+		local success = AWARD(BadgeService, player.UserId, badge.id)
+		info = PLAYER_INFOS[player]
 			
-			if success and info then
-				info.owned[badge.id] = true
-			end
-			return success
+		if success and info then
+			info.owned[badge.id] = true
 		end
+		return success
 	else
 		return false
 	end
