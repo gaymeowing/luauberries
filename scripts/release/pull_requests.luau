@@ -3,6 +3,7 @@
 -- util for getting pull requests after a unix timestamp
 
 local first_release_time = require("first_release_time")
+local author_fix = require("./author_fix")
 local datetime = require("@lune/datetime")
 local serde = require("@lune/serde")
 local summon = require("../summon")
@@ -66,7 +67,7 @@ do
 				if prs then
 					table.insert(prs, {
 						merged_at = datetime.fromIsoDate(pr.mergedAt).unixTimestamp,
-						author = pr.author.login,
+						author = author_fix(pr.author.login),
 						title = pr.title,
 						num = pr.number,
 					})

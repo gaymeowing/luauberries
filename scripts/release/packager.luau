@@ -7,11 +7,11 @@ local remove_from_end = require("../remove_from_end")
 local iter_scripts = require("../iter_scripts")
 local depgraph = require("../depgraph")
 local roblox = require("@lune/roblox")
-local modulify = require("modulify")
-local license = require("license")
-local libinfo = require("libinfo")
+local modulify = require("./modulify")
+local license = require("./license")
+local libinfo = require("./libinfo")
 local fs = require("@lune/fs")
-local zip = require("zip")
+local zip = require("./zip")
 
 export type PackagedLibInfo = {
 	base_file_name_with_deps: nil,

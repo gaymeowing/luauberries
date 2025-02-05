@@ -2,14 +2,14 @@
 -- test runner
 -- script for running tests for ci
 
-local diff_reader = require("diff_reader")
-local mock_roblox = require("mock/roblox")
+local diff_reader = require("./diff_reader")
+local mock_roblox = require("./mock/roblox")
 local process = require("@lune/process")
 local roblox = require("@lune/roblox")
-local depgraph = require("depgraph")
+local depgraph = require("./depgraph")
 local task = require("@lune/task")
 local fs = require("@lune/fs")
-local ansi = require("ansi")
+local ansi = require("./ansi")
 
 local function get_libs_to_test(): { string }
 	local args = table.clone(process.args)

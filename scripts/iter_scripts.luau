@@ -3,8 +3,8 @@
 -- recursively iterates over every luau file in a directory
 -- and calls a callback that can then optionally overwrite the file
 
+local ends_with = require("./ends_with")
 local iter_dir = require("./iter_dir")
-local ends_with = require("ends_with")
 
 local function iter_scripts(dir: string, f: (path: string, src: string) -> string?)
 	iter_dir(dir, function(info)

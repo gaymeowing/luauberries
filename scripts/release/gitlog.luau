@@ -2,7 +2,8 @@
 -- gitlog
 -- gets the gitlog after a unixtimestamp for a library
 
-local first_release_time = require("first_release_time")
+local first_release_time = require("./first_release_time")
+local author_fix = require("./author_fix")
 local summon = require("../summon")
 
 export type Commit = {
@@ -54,6 +55,10 @@ local function gitlog(lib: string, time: number?): { Commit }
 	local commits = {}
 
 	for hash, author, date, title in GMATCH(log, GIT_LOG_PATTERN) do
+		if author == "Kalrnlo" then
+			author = "gaymeowing"
+		end
+
 		table.insert(commits, table.freeze({
 			date = parse_git_date(date),
 			author = author,

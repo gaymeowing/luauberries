@@ -3,11 +3,11 @@
 -- dep graph
 -- module for generating a dependency graph for all libraries
 
-local remove_from_end = require("remove_from_end")
-local require_pattern = require("require_pattern")
-local iter_scripts = require("iter_scripts")
+local remove_from_end = require("./remove_from_end")
+local require_pattern = require("./require_pattern")
+local iter_scripts = require("./iter_scripts")
 local process = require("@lune/process")
-local remove = require("remove")
+local remove = require("./remove")
 local fs = require("@lune/fs")
 
 export type DependencyInfo = {	

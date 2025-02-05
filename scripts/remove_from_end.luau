@@ -2,7 +2,7 @@
 -- remove from end
 -- utility func for removing a string from the end of another string
 
-local ends_with = require("ends_with")
+local ends_with = require("./ends_with")
 
 local SUB = string.sub
 
