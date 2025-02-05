@@ -8,6 +8,7 @@ local diff_reader = require("../diff_reader")
 local impl = require("../mock/roblox/impl")
 local DateTime = require("@lune/DateTime")
 local process = require("@lune/process")
+local serde = require("@lune/serde")
 local packager = require("packager")
 local summon = require("../summon")
 local libinfo = require("libinfo")
@@ -110,8 +111,10 @@ for _, release_libinfo in RELEASE_LIBS do
 	for _, path in release_files do
 		summon("gh", `release upload {release_tag} {path} --clobber`)
 	end
+
+	local release_url = serde.decode("json", summon("gh", `release view {release_tag} --json url`)).url
+	print(`{lib} release: {release_url}`)
 	fs.removeDir("dist")
 end
-
 fs.removeDir("libs_copy")
 process.exit()
