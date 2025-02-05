@@ -1,65 +1,78 @@
---!optimize 2
 --!native
 
 -- levintine
 -- a port of fastest-levinstein to luau, with added functions for convenience
 -- https://github.com/ka-weihe/fastest-levenshtein
 
-export type MapInfo = {
+type MapInfo = {
 	case_sensitive: boolean?,
 	min_score: number?,
 }
 
-local DEFAULT_MIN_SCORE = -math.huge
 local PEQ = table.create(0x10000, 0)
--- no fast call for these, so they have to be set as locals
-local bit32_rshift = bit32.rshift
-local bit32_lshift = bit32.lshift
+local DEFAULT_MIN_SCORE = -math.huge
+local TCREATE = table.create
+local RSHIFT = bit32.rshift
+local LSHIFT = bit32.lshift
+local SPLIT = string.split
+local LOWER = string.lower
+local FIND = string.find
+local BYTE = string.byte
+local SORT = table.sort
+local CEIL = math.ceil
+local XOR = bit32.bxor
+local AND = bit32.band
+local NOT = bit32.bnot
+local OR = bit32.bor
+local MIN = math.min
 
 local function APPLY_CASE_SENSITIVITY(is_case_sensitive: boolean?, a: string, b: string): (string, string)
 	if is_case_sensitive then
 		return a, b
 	else
-		return string.lower(a), string.lower(b)
+		return LOWER(a), LOWER(b)
 	end
 end
 
-local function GET_BYTES(str: string, len: number): { number }
-	return { string.byte(str, 1, len) }
+local function GET_BYTES(s: string, len: number): { number }
+	return { BYTE(s, 1, len) }
 end
 
 local function myers_32(a: string, b: string, a_len: number, b_len: number): number
-	local lst = ( bit32_lshift(1, a_len - 1) )
-	local a_bytes = ( GET_BYTES(a, a_len) )
-	local b_bytes = ( GET_BYTES(b, b_len) )
+	local lst = LSHIFT(1, a_len - 1)
+	local a_bytes = GET_BYTES(a, a_len)
+	local b_bytes = GET_BYTES(b, b_len)
 	local sc = a_len
 	local pv = -1
 	local mv = 0
 
 	-- Set the bits for characters in string a
 	for j, a_byte in a_bytes do
-		PEQ[a_byte] = bit32.bor(PEQ[a_byte], bit32_lshift(1, j))
+		PEQ[a_byte] = OR(PEQ[a_byte], LSHIFT(1, j))
 	end
 	
 	for i, byte in b_bytes do
 		local eq = PEQ[byte]
-		local xv = ( bit32.bor(eq, mv) )
-		local new_eq = ( bit32.bor(eq, bit32.bxor(bit32.band(eq, pv) + pv, pv)) )
-		local mv2 = ( bit32.bor(mv, bit32.bnot(bit32.bor(new_eq, pv))) )
-		local pv2 = ( bit32.band(pv, new_eq) )
-		if bit32.band(mv2, lst) ~= 0 then
+		local xv = OR(eq, mv)
+		local new_eq = OR(eq, XOR(AND(eq, pv) + pv, pv))
+		local mv2 = OR(mv, NOT(OR(new_eq, pv)))
+		local pv2 = AND(pv, new_eq)
+
+		if AND(mv2, lst) ~= 0 then
 			sc += 1
 		end
-		if bit32.band(pv2, lst) ~= 0 then
+
+		if AND(pv2, lst) ~= 0 then
 			sc -= 1
 		end
-		local mv3 = ( bit32.bor(bit32_lshift(mv2, 1), 1) )
-		pv = ( bit32.bor(bit32_lshift(pv2, 1), bit32.bnot(bit32.bor(xv, mv3))) )
-		mv = ( bit32.band(mv3, xv) )
+
+		local mv3 = OR(LSHIFT(mv2, 1), 1)
+		pv = OR(LSHIFT(pv2, 1), NOT(OR(xv, mv3)))
+		mv = AND(mv3, xv)
 	end
 
 	-- Reset the PEQ array
-	for j, a_byte in a_bytes do
+	for _, a_byte in a_bytes do
 		PEQ[a_byte] = 0
 	end
 
@@ -67,13 +80,13 @@ local function myers_32(a: string, b: string, a_len: number, b_len: number): num
 end
 
 local function myers_x(b: string, a: string, a_len: number, b_len: number): number
-	local h_size = ( math.ceil(a_len / 32) )
-	local v_size = ( math.ceil(b_len / 32) )
-	local phc = ( table.create(h_size, -1) )
-	local mhc = ( table.create(h_size, 0) )
-	local a_bytes = ( GET_BYTES(a, a_len) )
-	local b_bytes = ( GET_BYTES(b, b_len) )
-	local v_min = ( math.min(32, b_len) )
+	local h_size = CEIL(a_len / 32)
+	local v_size = CEIL(b_len / 32)
+	local phc = TCREATE(h_size, -1)
+	local mhc = TCREATE(h_size, 0)
+	local a_bytes = GET_BYTES(a, a_len)
+	local b_bytes = GET_BYTES(b, b_len)
+	local v_min = MIN(32, b_len)
 	local j_outside = 1
 
 	for j = 1, v_size - 1 do
@@ -87,7 +100,7 @@ local function myers_x(b: string, a: string, a_len: number, b_len: number): numb
 		-- Set the bits for characters in string b
 		for k = start + 1, v_len, -start do
 			local b_byte = b_bytes[k]
-			PEQ[b_byte] = bit32.bor(PEQ[b_byte], bit32_lshift(1, k - start))
+			PEQ[b_byte] = OR(PEQ[b_byte], LSHIFT(1, k - start))
 		end
 
 		for index, byte in a_bytes do
@@ -97,27 +110,27 @@ local function myers_x(b: string, a: string, a_len: number, b_len: number): numb
 			local phc_value = phc[index_32floor]
 			local mhc_value = mhc[index_32floor]
 			local eq = PEQ[byte]
-			local pb = ( bit32.band(bit32_rshift(phc_value, index_32modulo), 1) )
-			local mb = ( bit32.band(bit32_rshift(mhc_value, index_32modulo), 1) )
-			local xv = ( bit32.bor(eq, mv) )
-			local xh = ( bit32.bor(bit32.bxor(bit32.band(bit32.bor(bit32.bor(eq, mb), pv), pv) + pv, pv), eq, mb) )
-			local ph = ( bit32.bor(mv, bit32.bnot(bit32.bor(xh, pv))) )
-			local mh = ( bit32.band(pv, xh) )
-			if bit32.bxor(bit32_rshift(ph, 31), pb) == 1 then
-				phc[index_32floor] = bit32.bxor(phc_value, bit32_lshift(1, index_32modulo))
+			local pb = AND(RSHIFT(phc_value, index_32modulo), 1)
+			local mb = AND(RSHIFT(mhc_value, index_32modulo), 1)
+			local xv = OR(eq, mv)
+			local xh = OR(XOR(AND(OR(OR(eq, mb), pv), pv) + pv, pv), eq, mb)
+			local ph = OR(mv, NOT(OR(xh, pv)))
+			local mh = AND(pv, xh)
+			if XOR(RSHIFT(ph, 31), pb) == 1 then
+				phc[index_32floor] = XOR(phc_value, LSHIFT(1, index_32modulo))
 			end
-			if bit32.bxor(bit32_rshift(mh, 31), mb) == 1 then
-				mhc[index_32floor] = bit32.bxor(mhc_value, bit32_lshift(1, index_32modulo))
+			if XOR(RSHIFT(mh, 31), mb) == 1 then
+				mhc[index_32floor] = XOR(mhc_value, LSHIFT(1, index_32modulo))
 			end
 			
-			pv = ( bit32.bor(
-				bit32.bor(bit32_lshift(mh, 1), mb), 
-				bit32.bnot(bit32.bor(xv, ph))
-			))
-			mv = (bit32.band(
-				bit32.bor(bit32_lshift(ph, 1), pb), 
+			pv = OR(
+				OR(LSHIFT(mh, 1), mb), 
+				NOT(OR(xv, ph))
+			)
+			mv = AND(
+				OR(LSHIFT(ph, 1), pb), 
 				xv
-			) )
+			)
 		end
 
 		-- Reset the PEQ array for the current block
@@ -127,17 +140,18 @@ local function myers_x(b: string, a: string, a_len: number, b_len: number): numb
 	end
 
 	local start = (j_outside - 1) * 32
-	local v_len = math.min(32, b_len - start) + start
+	local v_len = MIN(32, b_len - start) + start
 	local pv = -1
 	local mv = 0
 
 	-- Set the bits for characters in string b
 	for k = start + 1, v_len, -start do
 		local byte = b_bytes[k]
-		PEQ[byte] = bit32.bor(PEQ[byte], bit32_lshift(1, k))
+		PEQ[byte] = OR(PEQ[byte], LSHIFT(1, k))
 	end
 
 	local score = b_len
+
 	for index, byte in a_bytes do
 		local index_32floor = (index // 32) + 1
 		local index_32modulo = index % 32
@@ -145,29 +159,31 @@ local function myers_x(b: string, a: string, a_len: number, b_len: number): numb
 		local phc_value = phc[index_32floor]
 		local mhc_value = mhc[index_32floor]
 		local eq = PEQ[byte]
-		local pb = ( bit32.band(bit32_rshift(phc_value, index_32modulo), 1) )
-		local mb = ( bit32.band(bit32_rshift(mhc_value, index_32modulo), 1) )
-		local xv = ( bit32.bor(eq, mv) )
-		local xh = ( bit32.bor(bit32.bxor(bit32.band(bit32.bor(bit32.bor(eq, mb), pv), pv) + pv, pv), eq, mb) )
-		local ph = ( bit32.bor(mv, bit32.bnot(bit32.bor(xh, pv))) )
-		local mh = ( bit32.band(pv, xh) )
+		local pb = AND(RSHIFT(phc_value, index_32modulo), 1)
+		local mb = AND(RSHIFT(mhc_value, index_32modulo), 1)
+		local xv = OR(eq, mv)
+		local xh = OR(XOR(AND(OR(OR(eq, mb), pv), pv) + pv, pv), eq, mb)
+		local ph = OR(mv, NOT(OR(xh, pv)))
+		local mh = AND(pv, xh)
 		local b_subbed = b_len - 1
-		score += (bit32.band(bit32_rshift(ph, b_subbed), 1) - bit32.band(bit32_rshift(mh, b_subbed), 1))
-		if bit32.bxor(bit32_rshift(ph, 31), pb) == 1 then
-			phc[index_32floor] = bit32.bxor(phc_value, bit32_lshift(1, index_32modulo))
+		score += AND(RSHIFT(ph, b_subbed), 1) - AND(RSHIFT(mh, b_subbed), 1)
+
+		if XOR(RSHIFT(ph, 31), pb) == 1 then
+			phc[index_32floor] = XOR(phc_value, LSHIFT(1, index_32modulo))
 		end
-		if bit32.bxor(bit32_rshift(mh, 31), mb) == 1 then
-			mhc[index_32floor] = bit32.bxor(mhc_value, bit32_lshift(1, index_32modulo))
+
+		if XOR(RSHIFT(mh, 31), mb) == 1 then
+			mhc[index_32floor] = XOR(mhc_value, LSHIFT(1, index_32modulo))
 		end
 		
-		pv = (bit32.bor(
-			bit32.bor(bit32_lshift(mh, 1), mb), 
-			bit32.bnot(bit32.bor(xv, ph))
-		))
-		mv = (bit32.band(
-			bit32.bor(bit32_lshift(ph, 1), pb), 
+		pv = OR(
+			OR(LSHIFT(mh, 1), mb), 
+			NOT(OR(xv, ph))
+		)
+		mv = AND(
+			OR(LSHIFT(ph, 1), pb), 
 			xv
-		))
+		)
 	end
 
 	-- Reset the PEQ array for the last block
@@ -178,6 +194,14 @@ local function myers_x(b: string, a: string, a_len: number, b_len: number): numb
 	return score
 end
 
+--[[
+	Scores `a` and `b` using levenstine distance to compare the strings
+
+	```luau
+	local score = leventine.score("meow", "mrrp")
+	print(score) --> 4
+	```
+]]
 local function score(a: string, b: string, case_sensitive: boolean?): number
 	local a, b = APPLY_CASE_SENSITIVITY(case_sensitive, a, b)
 	local a_len = #a
@@ -197,38 +221,54 @@ local function score(a: string, b: string, case_sensitive: boolean?): number
 	end
 end
 
-local function map_sort(a: { string | number }, b: { string | number }): boolean
-	return (a[1] :: number) < (b[1] :: number)
-end
+local leventine = {}
 
-local function map(str: string, t: { string }, info: MapInfo?): { string }
+--[[
+	Gives a copy of `t` sorted based on highest to lowest score when scored aginst `s`
+
+	```luau
+	local mapped = leventine.map("meow", { "mrrp", "mrow", "miaow" })
+	print(table.concat(mapped, ", ")) --> "mrow, mrrp, miaow"
+	```
+]]
+function leventine.map(s: string, t: { string }, info: MapInfo?): { string }
 	local min_score = info and info.min_score or DEFAULT_MIN_SCORE
 	local case_sensitive = info and info.case_sensitive or false
-	local new_array = {}
+	local mapped = TCREATE(#t) :: { { string | number } }
 
-	for _, array_string in t do
-		local score = ( score(str, array_string, case_sensitive) )
+	for index, ts in t do
+		local score = ( score(s, ts, case_sensitive) )
 
 		if score > min_score then
-			table.insert(new_array, { score, array_string } :: { string | number })
+			mapped[index] = { score, ts } :: any
 		end
 	end
+	
+	SORT(mapped, function(a, b)
+		return a[1] < b[1]
+	end)
 
-	table.sort(new_array, map_sort)
-
-	for index, data in new_array do
-		new_array[index] = data[2] :: any
+	for index, info in mapped do
+		mapped[index] = info[2] :: any
 	end
-	return new_array :: any
+
+	return mapped :: any
 end
 
--- equilvelent to fzy.hasMatch
-local function has_match(match_aginst: string, str: string, case_sensitive: boolean?): boolean
-	local match_aginst, str = APPLY_CASE_SENSITIVITY(case_sensitive, match_aginst, str)
+--[[
+	Checks if `a` is a subsequence of `b`
+	
+	```luau
+	local has_match = leventine.has_match("meow", "mrrp")
+	print(has_match) --> false
+	```
+]]
+function leventine.has_match(a: string, b: string, case_sensitive: boolean?): boolean
+	local a, b = APPLY_CASE_SENSITIVITY(case_sensitive, a, b)
 	local char_index: number? = 1
 
-	for _, character in string.split(str) do 
-		char_index = ( string.find(match_aginst, character, char_index, true) )
+	for _, character in SPLIT(b) do 
+		char_index = FIND(a, character, char_index, true)
 
 		if char_index then
 			char_index += 1
@@ -239,25 +279,29 @@ local function has_match(match_aginst: string, str: string, case_sensitive: bool
 	return true
 end
 
--- gets the closest string to the provided string in an array
-local function closest(str: string, t: { string }, case_sensitive: boolean?): (string, number)
+--[[
+	Gives the closest string from `t` to `s`
+
+	```luau
+	local closest = leventine.closest("meow", { "mrrp", "mrow", "miaow" })
+	print(closest) --> "mrow"
+	```
+]]
+function leventine.closest(s: string, t: { string }, case_sensitive: boolean?): (string, number)
 	local closest_score = math.huge
 	local closest_string: string
 
-	for _, tbl_string in t do
-		local score = ( score(str, tbl_string, case_sensitive) )
+	for _, ts in t do
+		local score = score(s, ts, case_sensitive)
 
 		if score < closest_score then
-			closest_string = tbl_string
+			closest_string = ts
 			closest_score = score
 		end
 	end
 	return closest_string, closest_score
 end
 
-return table.freeze {
-	has_match = has_match,
-	closest = closest,
-	score = score,
-	map = map,
-}
+leventine.score = score
+
+return table.freeze(leventine)
