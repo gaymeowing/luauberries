@@ -4,7 +4,7 @@
 -- changes author names to the authors new username
 
 local function author_fix(author: string): string
-    if author == "Kalrnlo" then
+    if author == "kalrnlo" then
         return "gaymeowing"
     else
         return author

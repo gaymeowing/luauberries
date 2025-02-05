@@ -23,7 +23,7 @@ local MONTHS = table.freeze({
 local GMATCH = string.gmatch
 local MATCH = string.match
 
-local function parse_git_date(date: string): number
+local function PARSE_GIT_DATE(date: string): number
 	-- git log date format: "Day Mon DD HH:MM:SS YYYY +-ZZZZ"
 	local _, month, day, hour, minutes, seconds, year, zone_hours, zone_minutes = MATCH(date, GIT_DATE_FORMAT)
 	local zone_minutes = tonumber(zone_minutes)
@@ -55,13 +55,9 @@ local function gitlog(lib: string, time: number?): { Commit }
 	local commits = {}
 
 	for hash, author, date, title in GMATCH(log, GIT_LOG_PATTERN) do
-		if author == "Kalrnlo" then
-			author = "gaymeowing"
-		end
-
 		table.insert(commits, table.freeze({
-			date = parse_git_date(date),
-			author = author,
+			date = PARSE_GIT_DATE(date),
+			author = author_fix(author),
 			title = title,
 			hash = hash,
 		}))
