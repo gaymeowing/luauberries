@@ -4,25 +4,140 @@
 
 local AnalyticsService = game:GetService("AnalyticsService")
 
-export type CustomFields = { [string]: string }
+local MAX_CUSTOM_FIELDS: "3" = "3"
+local MAX_CUSTOM_FIELDS_NUM = tonumber(MAX_CUSTOM_FIELDS)
+
+type MAX_CUSTOM_FIELDS = typeof(MAX_CUSTOM_FIELDS)
+
+type function CustomEventMethods(eventsinfo, player, max_len, mt)
+	if eventsinfo:is("table") then
+		local nil_type = types.singleton(nil)
+		local custom_event_methods = types.newtable(nil, nil, mt)
+		local opt_number = types.unionof(types.number, nil_type)
+		local fields_singleton = types.singleton("fields")
+		local value_singleton = types.singleton("value")
+		local max_len = tonumber(max_len:value())
+
+		for name, info in eventsinfo:properties() do
+			info = info.write or info.read
+
+			if info:is("table") then
+				local properties = info:properties()
+
+				if next(properties) ~= nil then
+					local real_info = types.newtable()
+					local len = 0
+
+					for key, type_or_enum in properties do
+						len += 1
+	
+						if len > max_len then
+							error(`cannot have more than {max_len} fields in custom fields for event '{name:value()}'`)
+						end
+	
+						local info_value
+	
+						type_or_enum = info.write or info.read
+	
+						if type_or_enum:is("union") then
+							info_value = type_or_enum
+						else
+							local type = type_or_enum:value()
+	
+							if type == "number" then
+								info_value = types.number
+							elseif type == "string" then
+								info_value = types.string
+							else
+								info_value = type_or_enum
+							end
+						end
+
+						real_info:setreadproperty(key, info_value)
+					end
+	
+					custom_event_methods:setreadproperty(key, types.newfunction({
+						head = { 
+							custom_event_methods, player, 
+							types.newtable({
+								[value_singleton] = opt_number,
+								[fields_singleton] = types.unionof(real_info, nil_type)
+							})
+						}}, {}
+					))
+				end
+			else
+				custom_event_methods:setreadproperty(key, types.newfunction({
+					head = { custom_event_methods, player, opt_number }
+				}, {}))
+			end
+		end
+		
+		return custom_event_methods
+	else
+		error(`type '{eventsinfo.tag}' is not of type 'CustomEventsInfo'`)
+	end
+end
+
+type function CustomFieldsFunc(t, max_len)
+	local max_len = tonumber(max_len:value())
+
+	if t:is("table") then
+		local len = 0
+
+		for key, values in t:properties() do
+			len += 1
+
+			if len > max_len then
+				error(`cannot have more fields than '{max_len}'`)
+			end
+
+			local value = values.write or values.read
+			local value_tag = value.tag
+
+			if 
+				value_tag ~= "number" or 
+				value_tag ~= "string" or 
+				((value_tag == "singleton") and (type(value:value()) ~= "string")) 
+			then
+				error("value must be of type 'string' or 'number'")
+			end
+
+			local key_tag = key.tag
+
+			if 
+				key_tag ~= "string" or 
+				(key_tag == "singleton" and (type(key:value()) ~= "string")) 
+			then
+				error("key must be of type 'string'")
+			end
+		end
+
+		return t
+	else
+		error(`type {t.tag} is not of type 'CustomFields'`)
+	end
+end
+
+export type CustomFields<T> = CustomFieldsFunc<T, MAX_CUSTOM_FIELDS>
 
 type ConvertedCustomFields = { [Enum.AnalyticsCustomFieldKeys]: string }?
 
-type BaseAnalyticsInfo = {
-	custom_fields: CustomFields?
+type BaseAnalyticsInfo<T> = {
+	custom_fields: CustomFields<T>?
 }
 
-export type AnalyticsCustomEventInfo = BaseAnalyticsInfo & {
+export type AnalyticsCustomEventInfo<T> = BaseAnalyticsInfo<T> & {
 	value: number?,
 	name: string,
 }
 
-export type AnalyticsOnboardingFunnelStepInfo = BaseAnalyticsInfo & {
+export type AnalyticsOnboardingFunnelStepInfo<T> = BaseAnalyticsInfo<T> & {
 	step_name: string?,
 	step: number,
 }
 
-export type AnalyticsProgressionInfo = BaseAnalyticsInfo & {
+export type AnalyticsProgressionInfo<T> = BaseAnalyticsInfo<T> & {
 	status: Enum.AnalyticsProgressionType,
 	level_name: string,
 	path_name: string,
@@ -30,7 +145,7 @@ export type AnalyticsProgressionInfo = BaseAnalyticsInfo & {
 	step: number?,
 }
 
-export type AnalyticsEconomyInfo = BaseAnalyticsInfo & {
+export type AnalyticsEconomyInfo<T> = BaseAnalyticsInfo<T> & {
 	transaction_type: Enum.AnalyticsEconomyTransactionType,
 	flow_type: Enum.AnalyticsEconomyFlowType,
 	ending_balance: number,
@@ -39,29 +154,33 @@ export type AnalyticsEconomyInfo = BaseAnalyticsInfo & {
 	item_sku: string?,
 }
 
-export type AnalyticsFunnelStepInfo = BaseAnalyticsInfo & {
+export type AnalyticsFunnelStepInfo<T> = BaseAnalyticsInfo<T> & {
 	funnel_name: string,
 	sessionid: string?,
 	step_name: string?,
 	step: number?,
 }
 
-type CustomLoggerMethodInfo<F = CustomFields> = {
+type CustomLoggerMethodInfo<T> = {
 	value: number?,
-	fields: F,
+	fields: CustomFields<T>
+}
+
+type CustomEventsInfo = {
+	[string]: {
+		[string]: "number" | "string" | string,
+	} | true
 }
 
 type LoggerPrototype = {
-	event: (<S, N, F>(self: S & Logger, name: N & string, fields: F & {}) -> S & { [N]: (self: Logger, player: Player, info: CustomLoggerMethodInfo<F>) -> () }) & 
-		(<S, N>(self: S & Logger, name: N & string) -> S & { [N]: (self: Logger, player: Player, value: number?) -> () }),
-	onboarding_funnel_step: (self: Logger, player: Player, info: AnalyticsOnboardingFunnelStepInfo) -> (),
-	progression: (self: Logger, player: Player, info: AnalyticsProgressionInfo) -> (),
-	funnel_step: (self: Logger, player: Player, info: AnalyticsFunnelStepInfo) -> (),
-	economy: (self: Logger, player: Player, info: AnalyticsEconomyInfo) -> (),
+	onboarding_funnel_step: <T>(self: Logger, player: Player, info: AnalyticsOnboardingFunnelStepInfo<T>) -> (),
+	progression: <T>(self: Logger, player: Player, info: AnalyticsProgressionInfo<T>) -> (),
+	funnel_step: <T>(self: Logger, player: Player, info: AnalyticsFunnelStepInfo<T>) -> (),
+	economy: <T>(self: Logger, player: Player, info: AnalyticsEconomyInfo<T>) -> (),
 	__index: LoggerPrototype,
 }
 
-export type Logger = typeof(setmetatable({} :: {}, {} :: LoggerPrototype))
+type Logger = typeof(setmetatable({} :: {}, {} :: LoggerPrototype))
 
 local CUSTOM_FIELD_FORMAT = "%* = %*"
 local FORMAT = string.format
@@ -70,16 +189,15 @@ local CUSTOM_FIELDS = {
 	Enum.AnalyticsCustomFieldKeys.CustomField02,
 	Enum.AnalyticsCustomFieldKeys.CustomField03,
 }
-local MAX_CUSTOM_FIELDS = #CUSTOM_FIELDS
-local TOO_MANY_ENTRIES_ERR = `[LOG_ANALYTICS] cannot have more than {MAX_CUSTOM_FIELDS} custom fields`
+local TOO_MANY_ENTRIES_ERR = `[LOG_ANALYTICS]: cannot have more than '{MAX_CUSTOM_FIELDS}' custom fields`
 
 @native
-local function TABLE_TO_CUSTOM_FIELDS(fields: CustomFields): ConvertedCustomFields
+local function TABLE_TO_CUSTOM_FIELDS<T>(fields: CustomFields<T>): ConvertedCustomFields
 	local return_tbl = {}
 	local index = 1
 
 	for key, value in fields do
-		if index == MAX_CUSTOM_FIELDS then
+		if index == MAX_CUSTOM_FIELDS_NUM then
 			error(TOO_MANY_ENTRIES_ERR)
 		else
 			return_tbl[CUSTOM_FIELDS[index]] = FORMAT(CUSTOM_FIELD_FORMAT, key, value)
@@ -89,7 +207,7 @@ local function TABLE_TO_CUSTOM_FIELDS(fields: CustomFields): ConvertedCustomFiel
 	return return_tbl
 end
 
-local function INFO_TO_CUSTOM_FIELDS(info: BaseAnalyticsInfo): ConvertedCustomFields?
+local function INFO_TO_CUSTOM_FIELDS<T>(info: BaseAnalyticsInfo<T>): ConvertedCustomFields?
 	local custom_fields = info.custom_fields
 
 	if custom_fields then
@@ -99,33 +217,51 @@ local function INFO_TO_CUSTOM_FIELDS(info: BaseAnalyticsInfo): ConvertedCustomFi
 	end
 end
 
-local function onboarding_funnel_step(player: Player, info: AnalyticsOnboardingFunnelStepInfo)
+--[[
+	Logs an event used to track user actions stepping through an onboarding funnel. 
+	Funnel breakdowns will only consider the user and event values from the first step in a funnel session.
+]]
+local function onboarding_funnel_step<T>(player: Player, info: AnalyticsOnboardingFunnelStepInfo<T>)
 	AnalyticsService:LogOnboardingFunnelStepEvent(
 		player, info.step, info.step_name, INFO_TO_CUSTOM_FIELDS(info)
 	)
 end
 
-local function progression(player: Player, info: AnalyticsProgressionInfo)
+--[[
+	Logs an event for when a user has started, completed, or failed a level attempt. 
+]]
+local function progression<T>(player: Player, info: AnalyticsProgressionInfo<T>)
 	AnalyticsService:LogProgressionEvent(
 		player, info.path_name, info.status, info.level,
 		info.level_name, INFO_TO_CUSTOM_FIELDS(info)
 	)
 end
 
-local function funnel_step(player: Player, info: AnalyticsFunnelStepInfo)
+--[[
+	Logs an event used to track user actions stepping through a pre-planned funnel. 
+	Funnel breakdowns will only consider the user and event values from the first step in a funnel session.
+]]
+local function funnel_step<T>(player: Player, info: AnalyticsFunnelStepInfo<T>)
 	AnalyticsService:LogFunnelStepEvent(
 		player, info.funnel_name, info.sessionid, info.step, 
 		info.step_name, INFO_TO_CUSTOM_FIELDS(info)
 	)
 end
 
-local function custom(player: Player, info: AnalyticsCustomEventInfo)
+--[[
+	Logs an event used to track custom metrics of a user in experience. 
+	For additional information, see [Custom Events](https://create.roblox.com/docs/production/analytics/custom-events).
+]]
+local function custom<T>(player: Player, info: AnalyticsCustomEventInfo<T>)
 	AnalyticsService:LogCustomEvent(
 		player, info.name, info.value, INFO_TO_CUSTOM_FIELDS(info)
 	)
 end
 
-local function economy(player: Player, info: AnalyticsEconomyInfo)
+--[[
+	Logs an event used to track player actions related in experience.
+]]
+local function economy<T>(player: Player, info: AnalyticsEconomyInfo<T>)
 	AnalyticsService:LogEconomyEvent(
 		player, info.flow_type, info.currency_type, info.amount, info.ending_balance, 
 		info.transaction_type :: any, info.item_sku, INFO_TO_CUSTOM_FIELDS(info)
@@ -135,42 +271,47 @@ end
 local logger = {} :: LoggerPrototype
 logger.__index = logger
 
-logger.event = function(logger: any, name: string, fields: CustomFields?)
-	if fields then
-		logger[name] = function(player: Player, info: CustomLoggerMethodInfo)
-			AnalyticsService:LogCustomEvent(player, name, info.value, TABLE_TO_CUSTOM_FIELDS(info.fields))
-		end
-	else
-		logger[name] = function(player: Player, value: number?)
-			AnalyticsService:LogCustomEvent(player, name, value)
-		end
-	end
-
-	return logger :: any
-end :: any
-
--- having parens around all of these local function calls so they inline
--- fuck you multiret
 function logger.onboarding_funnel_step(logger, player, info)
-	return ( onboarding_funnel_step(player, info) )
+	onboarding_funnel_step(player, info)
 end
 
 function logger.progression(logger, player, info)
-	return ( progression(player, info) )
+	progression(player, info)
 end
 
 function logger.funnel_step(logger, player, info)
-	return ( funnel_step(player, info) )
+	funnel_step(player, info)
 end
 
 function logger.economy(logger, player, info)
-	return ( economy(player, info) )
+	economy(player, info)
 end
 
 local loganalytics_mt = {}
 
-function loganalytics_mt.__call(): Logger
-	return setmetatable({}, logger)
+--[[
+	Creates a custom logger with methods added for custom_events described in the `custom_events` table.
+	Custom event methods are fully typed, and allow for strictly defining what can be put in as custom fields.
+]]
+function loganalytics_mt.__call<S, E>(
+	self: S, 
+	custom_events: E & CustomEventsInfo
+): Logger & CustomEventMethods<E, Player, MAX_CUSTOM_FIELDS, LoggerPrototype>
+	local custom_event_methods = {}
+
+	for name, custom_fields in custom_events do
+		if type(custom_fields) == "table" then
+			custom_event_methods[name] = function<T>(self: Logger, player: Player, info: CustomLoggerMethodInfo<T>)
+				AnalyticsService:LogCustomEvent(player, name, info.value, TABLE_TO_CUSTOM_FIELDS(info.fields))
+			end
+		else
+			custom_event_methods[name] = function(self: Logger, player: Player, value: number?)
+				AnalyticsService:LogCustomEvent(player, name, value)
+			end
+		end
+	end
+
+	return table.freeze(setmetatable(custom_event_methods, logger)) :: any
 end
 
 table.freeze(loganalytics_mt)
