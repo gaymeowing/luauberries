@@ -9,76 +9,6 @@ local MAX_CUSTOM_FIELDS_NUM = tonumber(MAX_CUSTOM_FIELDS)
 
 type MAX_CUSTOM_FIELDS = typeof(MAX_CUSTOM_FIELDS)
 
-type function CustomEventMethods(eventsinfo, player, max_len, mt)
-	if eventsinfo:is("table") then
-		local nil_type = types.singleton(nil)
-		local custom_event_methods = types.newtable(nil, nil, mt)
-		local opt_number = types.unionof(types.number, nil_type)
-		local fields_singleton = types.singleton("fields")
-		local value_singleton = types.singleton("value")
-		local max_len = tonumber(max_len:value())
-
-		for name, info in eventsinfo:properties() do
-			info = info.write or info.read
-
-			if info:is("table") then
-				local properties = info:properties()
-
-				if next(properties) ~= nil then
-					local real_info = types.newtable()
-					local len = 0
-
-					for key, type_or_enum in properties do
-						len += 1
-	
-						if len > max_len then
-							error(`cannot have more than {max_len} fields in custom fields for event '{name:value()}'`)
-						end
-	
-						local info_value
-	
-						type_or_enum = info.write or info.read
-	
-						if type_or_enum:is("union") then
-							info_value = type_or_enum
-						else
-							local type = type_or_enum:value()
-	
-							if type == "number" then
-								info_value = types.number
-							elseif type == "string" then
-								info_value = types.string
-							else
-								info_value = type_or_enum
-							end
-						end
-
-						real_info:setreadproperty(key, info_value)
-					end
-	
-					custom_event_methods:setreadproperty(key, types.newfunction({
-						head = { 
-							custom_event_methods, player, 
-							types.newtable({
-								[value_singleton] = opt_number,
-								[fields_singleton] = types.unionof(real_info, nil_type)
-							})
-						}}, {}
-					))
-				end
-			else
-				custom_event_methods:setreadproperty(key, types.newfunction({
-					head = { custom_event_methods, player, opt_number }
-				}, {}))
-			end
-		end
-		
-		return custom_event_methods
-	else
-		error(`type '{eventsinfo.tag}' is not of type 'CustomEventsInfo'`)
-	end
-end
-
 type function CustomFieldsFunc(t, max_len)
 	local max_len = tonumber(max_len:value())
 
@@ -116,6 +46,74 @@ type function CustomFieldsFunc(t, max_len)
 		return t
 	else
 		error(`type {t.tag} is not of type 'CustomFields'`)
+	end
+end
+
+type function CustomEventMethods(eventsinfo, player, max_len, mt, class)
+	if eventsinfo:is("table") then
+		local nil_type = types.singleton(nil)
+		local custom_event_methods = types.newtable(nil, nil, mt)
+		local opt_number = types.unionof(types.number, nil_type)
+		local fields_singleton = types.singleton("fields")
+		local value_singleton = types.singleton("value")
+		local max_len = tonumber(max_len:value())
+
+		for name, info in eventsinfo:properties() do
+			info = info.write or info.read
+
+			if info:is("table") then
+				local properties = info:properties()
+
+				if next(properties) ~= nil then
+					local real_info = types.newtable()
+					local len = 0
+
+					for key, type_or_enum in properties do
+						len += 1
+	
+						if len > max_len then
+							error(`cannot have more than {max_len} fields in custom fields for event '{name:value()}'`)
+						end
+	
+						local info_value 
+	
+						type_or_enum = type_or_enum.write or type_or_enum.read
+	
+						if type_or_enum:is("union") then
+							info_value = type_or_enum
+						elseif type_or_enum:is("singleton") then
+							local type = type_or_enum:value()
+	
+							if type == "number" then
+								info_value = types.number
+							elseif type == "string" then
+								info_value = types.string
+							end
+						end
+
+						real_info:setreadproperty(key, info_value)
+					end
+	
+					custom_event_methods:setreadproperty(name, types.newfunction({
+						head = { 
+							class, player, 
+							types.newtable({
+								[value_singleton] = opt_number,
+								[fields_singleton] = types.unionof(real_info, nil_type)
+							})
+						}}, {}
+					))
+				end
+			else
+				custom_event_methods:setreadproperty(name, types.newfunction({
+					head = { class, player, opt_number }
+				}, {}))
+			end
+		end
+		
+		return custom_event_methods
+	else
+		error(`type '{eventsinfo.tag}' is not of type 'CustomEventsInfo'`)
 	end
 end
 
@@ -296,7 +294,7 @@ local loganalytics_mt = {}
 function loganalytics_mt.__call<S, E>(
 	self: S, 
 	custom_events: E & CustomEventsInfo
-): Logger & CustomEventMethods<E, Player, MAX_CUSTOM_FIELDS, LoggerPrototype>
+): Logger & CustomEventMethods<E, Player, MAX_CUSTOM_FIELDS, LoggerPrototype, Logger>
 	local custom_event_methods = {}
 
 	for name, custom_fields in custom_events do
