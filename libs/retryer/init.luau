@@ -10,7 +10,6 @@ type Results = {
 	[number]: any
 }
 
-local PACK = table.pack
 local WAIT = cross.wait
 
 local retryer_mt = {}
@@ -22,7 +21,7 @@ function retryer_mt.__call<S, A..., R...>(
 	f: (A...) -> (R...),
 	...: A...
 ): (boolean, R...)
-	local results: Results = PACK(pcall(f, ...))
+	local results: Results = { pcall(f, ...) }
 	local success = results[1]
 
 	if not success then
@@ -30,28 +29,28 @@ function retryer_mt.__call<S, A..., R...>(
 
 		repeat
 			WAIT()
-			results = PACK(pcall(f, ...))
+			results = { pcall(f, ...) }
 			success = results[1]
 			attempts += 1
 		until success or attempts == max_attempts
 	end
-	return success, unpack(results, 2, results.n)
+	return success, unpack(results, 2)
 end
 
 local retryer = setmetatable({}, table.freeze(retryer_mt))
 
 function retryer.infdelay<A..., R...>(delay: number, f: (A...) -> (R...), ...: A...): R...
-	local results: Results = PACK(pcall(f, ...))
+	local results: Results = { pcall(f, ...) }
 	local success = results[1]
 
 	if not success then
 		repeat
 			WAIT(delay)
-			results = PACK(pcall(f, ...))
+			results = { pcall(f, ...) }
 			success = results[1]
 		until success
 	end
-	return unpack(results, 2, results.n)	
+	return unpack(results, 2)	
 end
 
 function retryer.infexp<A..., R...>(
@@ -60,7 +59,7 @@ function retryer.infexp<A..., R...>(
 	f: (A...) -> (R...), 
 	...: A...
 ): R...
-	local results: Results = PACK(pcall(f, ...))
+	local results: Results = { pcall(f, ...) }
 	local success = results[1]
 
 	if not success then
@@ -68,12 +67,12 @@ function retryer.infexp<A..., R...>(
 
 		repeat
 			WAIT(delay + (delay_exponent ^ attempts))
-			results = PACK(pcall(f, ...))
+			results = { pcall(f, ...) }
 			success = results[1]
 			attempts += 1
 		until success
 	end
-	return unpack(results, 2, results.n)	
+	return unpack(results, 2)	
 end
 
 function retryer.delay<A..., R...>(
@@ -82,7 +81,7 @@ function retryer.delay<A..., R...>(
 	f: (A...) -> (R...), 
 	...: A...
 ): (boolean, R...)
-	local results: Results = PACK(pcall(f, ...))
+	local results: Results = { pcall(f, ...) }
 	local success = results[1]
 
 	if not results[1] then
@@ -90,12 +89,12 @@ function retryer.delay<A..., R...>(
 
 		repeat
 			WAIT(delay)
-			results = PACK(pcall(f, ...))
+			results = { pcall(f, ...) }
 			success = results[1]
 			attempts += 1
 		until success or attempts == max_attempts
 	end
-	return success, unpack(results, 2, results.n)	
+	return success, unpack(results, 2)	
 end
 
 function retryer.exp<A..., R...>(
@@ -104,7 +103,7 @@ function retryer.exp<A..., R...>(
 	max_attempts: number,
 	f: (A...) -> (R...), ...: A...
 ): (boolean, R...)
-	local results: Results = PACK(pcall(f, ...))
+	local results: Results = { pcall(f, ...) }
 	local success = results[1]
 
 	if not results[1] then
@@ -112,26 +111,26 @@ function retryer.exp<A..., R...>(
 
 		repeat
 			WAIT(delay + (delay_exponent ^ attempts))
-			results = PACK(pcall(f, ...))
+			results = { pcall(f, ...) }
 			success = results[1]
 			attempts += 1
 		until success or attempts == max_attempts
 	end
-	return success, unpack(results, 2, results.n)	
+	return success, unpack(results, 2)	
 end
 
 function retryer.inf<A..., R...>(f: (A...) -> (R...), ...: A...): R...
-	local results: Results = PACK(pcall(f, ...))
+	local results: Results = { pcall(f, ...) }
 	local success = results[1]
 
 	if not success then
 		repeat
 			WAIT()
-			results = PACK(pcall(f, ...))
+			results = { pcall(f, ...) }
 			success = results[1]
 		until success
 	end
-	return unpack(results, 2, results.n)	
+	return unpack(results, 2)	
 end
 
 return table.freeze(retryer)
