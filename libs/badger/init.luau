@@ -14,8 +14,8 @@ export type Badge = {
 type PlayerInfo = {
 	threads_waiting_for_id: { [number]: { thread } },
 	threads_waiting_for_all: { thread }?,
-	has_been_destroyed: true?,
 	owned: { [number]: true? },
+	has_been_destroyed: true?,
 	ids_to_check: { number },
 	amount_checked: number,
 	check_success: boolean,
@@ -32,8 +32,10 @@ local AWARD = BadgeService.AwardBadge
 local IDS = {} :: { number }
 local PAIR_INCREMENT = 9
 local NULL = nil :: any
--- BadgeService:CheckUserBadgesAsync() allows 5 requests per player each minute
--- so every 12 seconds we should be trying to fetch
+--[[
+	BadgeService:CheckUserBadgesAsync() allows 5 requests per player each minute
+	so every 12 seconds we should be trying to fetch
+--]]
 local FETCH_DELAY = 12
 local TOTAL_IDS = 0
 
@@ -53,24 +55,6 @@ local function GET_INFO(player: Player): PlayerInfo?
 	end
 
 	return info
-end
-
-local function HAS_BADGE(player: Player, badge: Badge, info: PlayerInfo): boolean
-	local id = badge.id
-
-	if info.amount_checked >= badge.index then
-		return info.owned[id] :: any
-	else
-		local waitlists = info.threads_waiting_for_id
-		local threads = waitlists[id]
-
-		if threads then
-			table.insert(threads, coroutine.running())
-		else
-			waitlists[id] = { coroutine.running() }
-		end
-		return coroutine.yield()
-	end
 end
 
 local function GET_IDS_OWNED(player: Player): { [number]: true? }?
@@ -164,10 +148,25 @@ end
 function badger.has(player: Player, badge: Badge): boolean
 	local info = GET_INFO(player)
 
-	return if info then
-			HAS_BADGE(player, badge, info)
+	if info then
+		local id = badge.id
+
+		if info.amount_checked >= badge.index then
+			return info.owned[id] :: any
 		else
-			false
+			local waitlists = info.threads_waiting_for_id
+			local threads = waitlists[id]
+	
+			if threads then
+				table.insert(threads, coroutine.running())
+			else
+				waitlists[id] = { coroutine.running() }
+			end
+			return coroutine.yield()
+		end
+	else
+		return false
+	end
 end
 
 --[[
