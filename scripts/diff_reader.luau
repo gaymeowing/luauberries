@@ -10,7 +10,7 @@ local SCRIPT_FILENAME_WHITELIST = table.freeze({
 	"test_runner", "depgraph", "diff_reader"
 })
 local LIB_FILENAME_BLACKLIST = table.freeze({
-	"LIBINFO", "README", "index",
+	"LIBRARY", "README", "index",
 })
 local GMATCH = string.gmatch
 local diff_reader = {}
