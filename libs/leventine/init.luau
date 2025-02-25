@@ -302,6 +302,9 @@ function leventine.closest(s: string, t: { string }, case_sensitive: boolean?): 
 	return closest_string, closest_score
 end
 
+
+
+
 leventine.score = score
 
 return table.freeze(leventine)
