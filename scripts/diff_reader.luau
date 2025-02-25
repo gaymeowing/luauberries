@@ -5,8 +5,6 @@
 
 local fs = require("@lune/fs")
 
-error(fs.readFile(".changed"))
-
 local DEFAULT_DIFF = if fs.isFile(".diff") then fs.readFile(".diff") else ""
 local SCRIPT_FILENAME_WHITELIST = table.freeze({
 	"test_runner", "depgraph", "diff_reader"
