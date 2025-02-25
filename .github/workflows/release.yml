@@ -7,53 +7,13 @@ on:
         description: 'List of libraries to force new releases for'
         required: true
         type: string
-  push:
-    branches: [ main ]
-    paths:
-      - "libs/**.luau"
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
 
 jobs:
-  CI:    
-    runs-on: ${{ matrix.runner-os }}
-    name: ${{ matrix.name }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Windows
-            runner-os: windows-latest
-  
-          - name: Linux
-            runner-os: ubuntu-latest
-  
-          - name: macOS
-            runner-os: macos-14
-        
-    steps:
-      - uses: CompeyDev/setup-rokit@v0.1.0
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
-
-      - name: Fetch Changed
-        id: changed
-        uses: tj-actions/changed-files@v45
-        with:
-          json: true
-          files: "libs/**.luau"
-
-      - name: Write changed
-        run: echo ${{ steps.changed.outputs.all_changed_files }} >> .changed
-             echo ${{ steps.changed.outputs.all_changed_files }}
-
-      - name: Install Toolchain
-        run: rokit install --no-trust-check
-
-      - name: Run test runner
-        run: lune run scripts/test_runner release ${{ inputs.libs }}
-
   Main:
-    needs: CI
     runs-on: ubuntu-latest
     steps:
       - uses: CompeyDev/setup-rokit@v0.1.0
@@ -68,8 +28,9 @@ jobs:
         id: changed
         uses: tj-actions/changed-files@v45
         with:
+          fetch_depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
           json: true
-          files: "libs/**.luau"
+          files: "libs"
 
       - name: Write changed
         run: echo ${{ steps.changed.outputs.all_changed_files }} >> .changed
