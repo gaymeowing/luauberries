@@ -44,6 +44,7 @@ jobs:
 
       - name: Write changed
         run: echo ${{ steps.changed.outputs.all_changed_files }} >> .changed
+             echo ${{ steps.changed.outputs.all_changed_files }}
 
       - name: Install Toolchain
         run: rokit install --no-trust-check
