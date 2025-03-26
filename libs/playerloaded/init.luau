@@ -1,35 +1,43 @@
 
--- player loaded
--- module for handling callbacks to the player loaded remote
+--[[
+	player loaded
+	handles callbacks for a player loaded remote, because having a player loaded remote
+	is a good idea so you don't fill up the remote queue for a player 
+	before they've been able to recive remote events
+]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local character = require("../character")
 
-type PlayerLoadedCallback = (player: Player & { Character: character.Character }) -> ()
+export type PlayerLoadedCallback = (player: Player & { Character: character.Character }) -> ()
 
-local CALLBACKS_WAITING_FOR_NEXT_PLAYER = {} :: { { PlayerLoadedCallback } }
+local CALLBACKS_WAITING_FOR_NEXT_PLAYER = {} :: { PlayerLoadedCallback }
 local PLAYERS_LOADED = table.create(Players.MaxPlayers) :: { Player }
 local THREADS_WAITING_FOR_PLAYERS = {} :: { [Player]: { thread } }
 local THREADS_WAITING_FOR_NEXT_PLAYER = {} :: { thread }
-local CALLBACKS = {} :: { { PlayerLoadedCallback } }
-local REMOTE_NAME = "PLAYER LOADED"
+local CALLBACKS = {} :: { PlayerLoadedCallback }
+local REMOTE_NAME = "PlayerLoaded"
 local LOADED_COUNT = 0
+
+local function SWAP_REMOVE<V>(t: { V }, v: V)
+	local index = table.find(t, v)
+
+	if index then
+		if index ~= 1 then
+			local len = #t
+			t[index] = t[len]
+			t[len] = nil
+		else
+			t[1] = nil
+		end
+	end	
+end
 
 local function CREATE_DISCONNECT<V>(t:{ V }, v: V): () -> ()
 	return function()
-		local index = table.find(t, v)
-
-		if index then
-			if index ~= 1 then
-				local len = #t
-				t[index] = t[len]
-				t[len] = nil
-			else
-				t[1] = nil
-			end
-		end	
+		SWAP_REMOVE(t, v)
 	end
 end
 
@@ -39,17 +47,15 @@ local player_loaded = {}
 	Calls the provided callback everytime a player loads in,
 	unless disconnected using the returned disconnect function.
 ]]
-function player_loaded.on(f: PlayerLoadedCallback, run_for_existing: true?): () -> ()
-	if run_for_existing then
+function player_loaded.on(f: PlayerLoadedCallback, dont_run_for_existing: true?): () -> ()
+	if not dont_run_for_existing then
 		for _, player in PLAYERS_LOADED do
 			task.defer(f, player :: any)
 		end
 	end
 
-	local callback_info = table.freeze({ f })
-	table.insert(CALLBACKS, callback_info)
-
-	return CREATE_DISCONNECT(CALLBACKS, callback_info)
+	table.insert(CALLBACKS, f)
+	return CREATE_DISCONNECT(CALLBACKS, f)
 end
 
 --[[
@@ -77,13 +83,8 @@ end
 	unless disconnected using the returned disconnect function.
 ]]
 function player_loaded.once(f: PlayerLoadedCallback): () -> ()
-	local callback_info = table.freeze({ f })
-	table.insert(CALLBACKS_WAITING_FOR_NEXT_PLAYER, callback_info)
-
-	return CREATE_DISCONNECT(
-		CALLBACKS_WAITING_FOR_NEXT_PLAYER,
-		callback_info
-	)
+	table.insert(CALLBACKS_WAITING_FOR_NEXT_PLAYER, f)
+	return CREATE_DISCONNECT(CALLBACKS_WAITING_FOR_NEXT_PLAYER, f)
 end
 
 --[[
@@ -111,7 +112,7 @@ do
 		end
 
 		for _, callback in CALLBACKS_WAITING_FOR_NEXT_PLAYER do
-			task.defer(callback[1], player :: any)
+			task.defer(callback, player :: any)
 		end
 
 		for _, thread in THREADS_WAITING_FOR_NEXT_PLAYER do
@@ -119,7 +120,7 @@ do
 		end
 
 		for _, callback in CALLBACKS do
-			task.defer(callback[1], player :: any)
+			task.defer(callback, player :: any)
 		end
 
 		table.clear(CALLBACKS_WAITING_FOR_NEXT_PLAYER)
@@ -128,17 +129,16 @@ do
 
 	if RunService:IsServer() then
 		local remote = Instance.new("RemoteEvent")
-		local fire_client = remote.FireClient
-		remote.Name = "PLAYER LOADED"
 		remote.Parent = ReplicatedStorage
+		remote.Name = REMOTE_NAME
 
 		remote.OnServerEvent:Connect(function(loaded_player)
 			if not table.find(PLAYERS_LOADED, loaded_player) then
-				fire_client(remote, loaded_player, PLAYERS_LOADED)
+				remote:FireClient(loaded_player, PLAYERS_LOADED)
 				run_for_player(loaded_player)
 
 				for _, player in PLAYERS_LOADED do
-					fire_client(remote, player, loaded_player)
+					remote:FireClient(player, loaded_player)
 				end
 			end
 		end)
@@ -169,19 +169,6 @@ do
 
 	Players.PlayerRemoving:Connect(function(player)
 		local threads = THREADS_WAITING_FOR_PLAYERS[player]
-		local index = table.find(PLAYERS_LOADED, player)		
-
-		if index then
-			if index ~= 1 then
-				local len = #PLAYERS_LOADED
-				PLAYERS_LOADED[index] = PLAYERS_LOADED[len]
-				PLAYERS_LOADED[len] = nil
-			else
-				PLAYERS_LOADED[1] = nil
-			end
-
-			LOADED_COUNT -= 1
-		end
 
 		if threads then
 			THREADS_WAITING_FOR_PLAYERS[player] = nil
@@ -190,6 +177,8 @@ do
 				task.defer(thread, nil)
 			end
 		end
+
+		SWAP_REMOVE(PLAYERS_LOADED, player)
 	end)
 
 end
