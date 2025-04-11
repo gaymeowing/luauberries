@@ -1,28 +1,32 @@
 --!nocheck
---!native
 --!nolint
 
--- cross
--- basic cross runtime utility, covering the bear nessisities
+--[[
+	cross
+	basic cross runtime utility, covering the bear nessisities
+]]
 
--- darklua doesnt like "task" and "warn"
-local cross_task = require("./task")
-local cross_warn = require("./warn")
+local cross_task = require("@self/task")
+local cross_warn = require("@self/warn")
 
-type Runtime = "ROBLOX" | "LUNE" | "NONE"
+type Runtime = "Roblox" | "Lune" | "Unknown" | "Lute"
 
-local RUNTIME: Runtime = if game and game.ClassName == "DataModel" and game.GraphicsQualityChangeRequest then
-		"ROBLOX"
+local RUNTIME: Runtime = if game and workspace then
+		"Roblox"
+	elseif string.find(_VERSION, "Lute") then
+		"Lute"
 	elseif string.find(_VERSION, "Lune") then
-		"LUNE"
+		"Lune"
 	else
-		"NONE"
+		"Unknown"
 
+local STD_TASK_EXISTS, STD_TASK = pcall(require, "@std/task")
 local WARN: typeof(cross_warn) = warn or cross_warn
-
 local TASK: typeof(cross_task) = if task then 
 		task 
-	elseif RUNTIME == "LUNE" then 
+	elseif STD_TASK_EXISTS then
+		STD_TASK
+	elseif RUNTIME == "Lune" then 
 		(require)("@lune/task") 
 	else 
 		cross_task
@@ -57,8 +61,7 @@ return table.freeze({
 	spawn = TASK.spawn,
 	defer = TASK.defer,
 	delay = TASK.delay,
+	runtime = RUNTIME,
 	wait = TASK.wait,
 	warn = WARN,
-
-	runtime = RUNTIME,
 })
