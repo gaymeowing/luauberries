@@ -4,11 +4,43 @@
 	module for validating forms
 ]]
 
+local weak = require("../weak")
+
 export type QuestionType = "MultipleChoice" | "Text" | "Scale" | "Checkboxes"
+
+type function Range(t: type)
+	local from_not_num_err = "field 'from' must be of type 'number'"
+	local to_not_num_err = "field 'to' must be of type 'number'"
+	local from = t:readproperty(types.singleton("from"))
+	local to = t:readproperty(types.singleton("to")) 
+
+	if from:is("singleton") and to:is("singleton") then
+		local fromv = from:value()
+		local tov = to:value()
+
+		if type(fromv) ~= "number" then
+			error(from_not_num_err)
+		end
+
+		if type(tov) ~= "number" then
+			error(to_not_num_err)
+		end
+
+		if fromv > tov then
+			error("field 'from' cannot be greater than field 'to'")
+		end
+	elseif not from:is("nil") and not from:is("number") then
+		error(from_not_num_err)
+	elseif not to:is("nil") and not to:is("number") then
+		error(to_not_num_err)
+	end
+
+	return t
+end
 
 -- Question Bases
 
-type BaseQuestionBase<TYPE, A, MAXL, MINL, F, T, B, R> = {
+type BaseQuestionBase<TYPE, A, MAXL, MINL, F, T, B, R> = Range<{
 	max_len: MAXL,
 	min_len: MINL,
 	required: R,
@@ -17,7 +49,7 @@ type BaseQuestionBase<TYPE, A, MAXL, MINL, F, T, B, R> = {
 	bonus: B,
 	from: F,
 	to: T,
-}
+}>
 
 export type QuizQuestionBase<TYPE, A, MAXL, MINL, F, T> = 
 	| BaseQuestionBase<TYPE, A, MAXL, MINL, F, T, number | true, false>
@@ -33,7 +65,7 @@ export type AnswersOnlyQuestionBase<TYPE, A> = QuestionBase<TYPE, A, nil, nil, n
 
 export type TextQuizQuestion = QuizQuestionBase<"Text", string, number?, number?, nil, nil>
 
-export type TextQuestion = QuestionBase<"Text", string, number?, number?, nil, nil>
+export type TextQuestion = QuestionBase<"Text", nil, number?, number?, nil, nil>
 
 export type MultipleChoiceQuestion = AnswersOnlyQuestionBase<"MultipleChoice", { string }>
 
@@ -49,7 +81,10 @@ export type CheckboxesQuizQuestion = AnswersOnlyQuizQuestionBase<"Checkboxes", {
 	correct: { string },
 }>
 
-export type ScaleQuizQuestion = QuizQuestionBase<"Scale", number, nil, nil, number, number>
+export type ScaleQuizQuestion<F = number, T = number> = QuizQuestionBase<"Scale", Range<{
+	read from: F,
+	read to: T,
+}> | number, nil, nil, number, number>
 
 export type ScaleQuestion = QuestionBase<"Scale", nil, nil, nil, number, number>
 
@@ -122,7 +157,7 @@ export type FormResponce<T = nil> = {
 }
 
 --[[
-	form buffer spec:
+	form responce buffer spec:
 	1 bytes for info len
 	variable bytes for info
 	variable bytes for questions
@@ -166,10 +201,7 @@ type FormPrototype<N = string, QL = {}, FRI = nil> = {
 	grade: ((form: Form<N, QL, FRI>, responce: FormResponce<FRI>) -> (boolean, number, { [QuestionResponce]: boolean })) &
 		((form: Form<N, QL, FRI>, responce: buffer) -> (boolean, number, { [QuestionId]: boolean })),
 	get_question: <QN>(form: Form<N, QL, FRI>, name: QN & keyof<QL>) -> index<QL, QN> & RegisteredQuestionInfo,
-	--TODO: give plaincopy a proper return type
-	-- plain copy is for saving forms into things like datastores as it removes the metatable
-	-- allowing to save work 
-	plain_copy: (form: Form<N, QL, FRI>) -> any,
+	to_buffer: (form: Form<N, QL, FRI>) -> buffer,
 	__index: FormPrototype<N, QL, FRI>,
 }
 
@@ -186,12 +218,11 @@ export type Form<N = string, QL = {}, FRI = nil> = setmetatable<({
 local WEAK_KEY_MT = { __mode = "k" }
 
 local SERIALIZER_INFO = setmetatable({}, WEAK_KEY_MT) :: { [FormSerializer]: SerializerInfo }
-local FORMS = {} :: { [string]: Form }
 local POINTS_PER_QUESTION = 100
 local DEFAULT_BONUS_POINTS = 50
 
 --TODO: replace return w type function
-local function GET_QUESTION<QNOI>(form: Form, name_or_id: string | QuestionId): any
+local function GET_QUESTION(form: Form, name_or_id: string | QuestionId): MixedQuestion
 	if type(name_or_id) == "number" then
 		for _, question in form.questions do
 			if question.id == name_or_id then
@@ -209,8 +240,25 @@ local function GET_QUESTION<QNOI>(form: Form, name_or_id: string | QuestionId): 
 	return nil :: any
 end
 
-local function GET_PERCENT(n: number, percent: number): number
-	return (n * percent) / 100
+local function WRITE_BOOLEAN(b: buffer, offset: number, v: boolean)
+	buffer.writeu8(b, offset, if v == false then 0 else 1)
+end
+
+local function WRITE_SHORT_STRING(b: buffer, offset: number, s: string): number
+	buffer.writeu8(b, offset, #s)
+	buffer.writestring(b, offset + 1, s)
+	return offset + #s + 1
+end
+
+local function TYPE_TO_NUM(type: QuestionType): number
+	return if type == "MultipleChoice" then
+			4
+		elseif type == "Checkboxes" then
+			3
+		elseif type == "Scale" then
+			2
+		else
+			1
 end
 
 local function FREEZE_IF_NOT_FROZEN<T>(t: T & {}): T
@@ -218,6 +266,34 @@ local function FREEZE_IF_NOT_FROZEN<T>(t: T & {}): T
 		table.freeze(t)
 	end
 	return t
+end
+
+--[[
+	this is a seperate function because im a nerd, 
+	and dont want every question to store a is_quiz field 
+	(because its only ever needed for saving forms to a buffer)
+]]
+local function is_quiz_question(question: MixedQuestion): boolean
+	-- only quiz questions can have a bonus field
+	if question.bonus then
+		return true
+	end
+	local answer = question.answer
+
+	--[[
+		case 1: quiz questions are the only type of question where the type of the answer field may not be a table
+		cases 2-3: if the question has its answer field as a table, then only quiz questions will have the fields 
+			('correct' and 'incorrect') or ('from' and 'to')
+	]]
+	if 
+		type(answer) ~= "table" 
+		or (answer.correct and answer.incorrect)
+		or (answer.from and answer.to)
+	then
+		return true
+	end
+
+	return false
 end
 
 -- using the prototype types no workey :(
@@ -273,15 +349,142 @@ function registered_form.grade(form, responce)
 	end
 end
 
-local form = {}
+--[[
+	form buffer spec:
+	1 byte is_quiz
+	1 byte can_fully_autograde
+	1 byte award_partially_correct
+	2 bytes min_points
+	1 byte questions len
+	1 byte name len
+	0..255 bytes for name
 
-function form.register<N, QL, FRI>(info: FormInfo<N, QL>): Form<N, QL, FRI>
-	local name = info.name
+	choice:
+		1 byte id
+		1 byte name len
+		0..255 bytes for name
 
-	if FORMS[name] then
-		error(`[FORM]: cannot have more than one quiz registered with the name '{name}'`)
+	questions:
+		1 byte id
+		1 byte type
+		1 byte is_quiz
+		1 byte required
+		1 byte bonus
+		1 byte name len
+		0..255 bytes for name
+
+		multiple choice:
+			if is_quiz then
+				1 byte correct len
+				1 byte incorrect len
+				variable bytes for correct choices
+				variable bytes for incorrect choices
+			else
+				1 byte choices len
+				variable bytes for choices
+
+		checkboxes:
+			if is_quiz then
+				1 byte correct len
+				1 byte incorrect len
+				variable bytes for correct choices
+				variable bytes for incorrect choices
+			else 
+				1 byte choices len
+				variable bytes for choices
+
+		scale:
+			1 byte from (the starting point on the scale)
+			1 byte to (the ending point on the scale)
+
+			if is_quiz then
+				1 byte for the answers from
+				1 byte for the answers to
+
+		text:
+			4 bytes min len
+			4 bytes max len
+
+			if is_quiz then
+				4 bytes answer len
+				0..4_294_967_295 bytes for answer
+]]
+function registered_form.to_buffer(form)
+	local questions = form.questions
+	local name = form.name
+	local size = #name + 7
+	--[[
+		the starting offset is the same as the base size
+		so offset is declared here to save time
+	]]
+	local offset = size
+
+	for _, question in questions do
+		local question_type: QuestionType = question.type
+		size += #question.name + 6
+
+		if question_type == "Scale" then
+			size += 2
+
+			if question.answer then
+				size += 2
+			end
+		elseif question_type == "Text" then
+			size += 8
+
+			if question.answer then
+				size += #question.answer + 4
+			end
+		else
+			local answer_ids = question.answer_ids
+			size += (#answer_ids * 2) + 1
+
+			for _, choice in answer_ids do
+				size += #choice
+			end
+		end
 	end
 
+	local b = buffer.create(size)
+	
+	WRITE_BOOLEAN(b, 0, form.is_quiz)
+	WRITE_BOOLEAN(b, 1, form.can_fully_autograde)
+	WRITE_BOOLEAN(b, 2, form.award_partially_correct)
+	buffer.writeu16(b, 3, form.min_points)
+	buffer.writeu8(b, 5, #questions)
+	WRITE_SHORT_STRING(b, 6, name)
+
+	for _, question in questions do
+		local is_quiz = is_quiz_question(question)
+		local question_type = question.type
+
+		buffer.writeu8(b, offset, question.id)
+		offset += 1
+		buffer.writeu8(b, offset, TYPE_TO_NUM(question_type))
+		offset += 1
+		WRITE_BOOLEAN(b, offset, is_quiz)
+		offset += 1
+		WRITE_BOOLEAN(b, offset, question.required)
+		offset += 1
+		buffer.writeu8(b, offset, question.bonus or 0)
+		offset = WRITE_SHORT_STRING(b, offset + 1, s)
+
+		if question_type == "Scale" then
+			
+		elseif question_type == "Text" then
+		
+		else
+
+		end
+	end
+
+	return b
+end
+
+local form = {}
+
+--TODO: add overload for registering from a buffer
+function form.register<N, QL, FRI>(info: FormInfo<N, QL>): Form<N, QL, FRI>
 	local default_bonus_points = info.default_bonus_points or DEFAULT_BONUS_POINTS
 	local percent_to_pass = info.percent_to_pass or 70
 	-- this array is too complex to type here so its just becoming any
@@ -291,7 +494,6 @@ function form.register<N, QL, FRI>(info: FormInfo<N, QL>): Form<N, QL, FRI>
 	local next_id = 0
 
 	for name, question: MixedQuestion in info.questions do
-		local question_type = question.type
 		local answer = question.answer
 
 		if type(answer) == "table" then
@@ -305,6 +507,13 @@ function form.register<N, QL, FRI>(info: FormInfo<N, QL>): Form<N, QL, FRI>
 			elseif correct and incorrect then
 				FREEZE_IF_NOT_FROZEN(incorrect)
 				FREEZE_IF_NOT_FROZEN(correct)
+				--TODO: need to reflect the answers_ids array in the type
+				question.answer_ids = table.move(
+					incorrect, 1, #incorrect, #correct + 1, 
+					table.clone(correct)
+				)
+			else
+				question.answer_ids = answer
 			end
 
 			FREEZE_IF_NOT_FROZEN(answer)
@@ -323,6 +532,7 @@ function form.register<N, QL, FRI>(info: FormInfo<N, QL>): Form<N, QL, FRI>
 		table.insert(questions_array, question)
 		question.id = next_id
 		question.name = name
+		table.freeze(question)
 		next_id += 1
 	end
 
@@ -330,10 +540,16 @@ function form.register<N, QL, FRI>(info: FormInfo<N, QL>): Form<N, QL, FRI>
 		info.award_partially_correct = true
 	end
 
-	info.min_points = GET_PERCENT(required_points, info.percent_to_pass or 70)
+	local serializer = table.freeze(setmetatable({ form = info }, serializer))
+	SERIALIZER_INFO[serializer] = {
+		buffers = {}
+	}
+
+	info.min_points = (required_points * (info.percent_to_pass or 70)) // 100
 	info.can_fully_autograde = can_fully_autograde
 	info.questions = questions_array
-	FORMS[name] = info
+	info.serializer = serializer
+
 	return table.freeze(setmetatable(info, registered_form))
 end
 
