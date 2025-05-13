@@ -101,7 +101,7 @@ end
 
 local function CLASS_INTEGER(random: Random, min: number?, max: number?): number
 	SET_STATE(random)
-	return math.random(min or DEFAULT_MIN, max or DEFAULT_MIN)
+	return math.random(min or DEFAULT_MIN, max or DEFAULT_MAX)
 end
 
 local function CLASS_FLOAT(random: Random, min: number?, max: number?): number
