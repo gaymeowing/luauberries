@@ -1,92 +1,250 @@
---!optimize 2
 --!native
 
--- random
--- functional version of the roblox random class, thats 80% in luau
+--[[
+	random
+	pure luau functional equivalent to robloxs random class
+]]
 
-local math_randomseed = math.randomseed
-local math_random = math.random
---local ZERO_VEC = Vector3.zero
-local NEG_PI = -math.pi
-local SEED: number
+type RandomPrototype = {
+	--[[
+		Returns a pseudorandom integer uniformly distributed over `[min, max]`.
+	]]
+	interger: (self: Random, min: number?, max: number?) -> number,
+	--[[
+		Returns a pseudorandom vector uniformly distributed over `[min, max]`.
+	]]
+	vector: (self: Random, min: vector?, max: vector?) -> vector,
+	--[[
+		Returns a pseudorandom number uniformly distributed over `[min, max]`.
+	]]
+	float: (self: Random, min: number?, max: number?) -> number,
+	--[[
+		Returns a normalized vector (unit vector) with a pseudorandom direction.
+	]]
+	normalized_vector: (self: Random) -> vector,
+	--[[
+		Uniformly shuffles an array-like table in-place.
+	]]
+	shuffle: <V>(self: Random, t: { V }) -> (),
+	--[[
+		Returns a random value from an array-like table.
+	]]
+	index: <V>(self: Random, t: { V }) -> V,
+	__index: RandomPrototype
+}
 
-local function SET_SEED(seed: number?)
-	SEED = seed or os.clock()
-	math_randomseed(SEED)
+--[[
+	Generates pseudorandom numbers, vectors, and directions.
+]]
+export type Random = setmetatable<{
+	state: number,
+}, RandomPrototype>
+
+local function CREATE_SEED(): number
+	return os.time() * os.clock() % 100
 end
 
-local function int(min: number?, max: number?, seed: number?): number
-	SET_SEED(seed)
-	return math_random(min or NEG_PI, max or math.pi)
+local DEFAULT_MAX = 9007199254740991
+local DEFAULT_MIN = -DEFAULT_MAX
+local SEED = CREATE_SEED()
+
+local function is_close(a: number, b: number): boolean
+	return math.abs(a - b) <= math.max(
+		1e-09 * math.max(math.abs(a), math.abs(b)), 0
+	)
 end
 
-local function float(min: number?, max: number?, seed: number?): number
-	SET_SEED(seed)
-	local real_min = min or math_random()
-	SET_SEED(seed)
-	local real_max = max or math_random(real_min)
+local function RANDOMIZE_STATE(state: number): number
+	return (state * 6364136223846793) + 105
+end
+
+local function GET_SEED(seed: number?): number
+	seed = seed or CREATE_SEED()
+
+	return if is_close(seed, SEED) then
+			RANDOMIZE_STATE(seed)
+		else
+			seed
+end
+
+local function SET_SEED(seed: number)
+	SEED = seed
+	math.randomseed(seed)
+end
+
+--[[
+	Returns a pseudorandom integer uniformly distributed over `[min, max]`.
+]]
+local function INTERGER(min: number?, max: number?, seed: number?): number
+	SET_SEED(GET_SEED(seed))
+	return math.random(min or DEFAULT_MIN, max or DEFAULT_MAX)
+end
+
+--[[
+	Returns a pseudorandom number uniformly distributed over `[min, max]`.
+]]
+local function FLOAT(min: number?, max: number?, seed: number?): number
+	SET_SEED(GET_SEED(seed))
+	local real_min = min or math.random()
+	SET_SEED(GET_SEED(seed))
+	local real_max = max or math.random(real_min, DEFAULT_MAX)
 	
-	SET_SEED(seed)
-	return real_min + (math_random() * (real_max - real_min))
+	SET_SEED(GET_SEED(seed))
+	return real_min + (math.random() * (real_max - real_min))
 end
 
-local function vector(min: Vector3?, max: Vector3?, seed: number?): Vector3
-	local max = max or Vector3.new(
-		float(0, nil, seed),
-		float(0, nil, seed),
-		float(0, nil, seed)
-	).Unit
-	local min = min or ZERO_VEC
+local function SET_STATE(random: Random)
+	local state = RANDOMIZE_STATE(random.state)
+	math.randomseed(state)
+	random.state = state
+end
 
+local function CLASS_INTERGER(random: Random, min: number?, max: number?): number
+	SET_STATE(random)
+	return math.random(min or DEFAULT_MIN, max or DEFAULT_MIN)
+end
+
+local function CLASS_FLOAT(random: Random, min: number?, max: number?): number
+	SET_STATE(random)
+	local real_min = min or math.random()
+	SET_STATE(random)
+	local real_max = max or math.random(real_min, DEFAULT_MAX)
 	
-	return Vector3.new(
-		float(min.X, max.X, seed),
-		float(min.Y, max.Y, seed),
-		float(min.Z, max.Z, seed)
-	).Unit
+	SET_STATE(random)
+	return real_min + (math.random() * (real_max - real_min))
 end
 
-local function shuffle<V>(arr: { V }, seed: number?): { V }
-	local new_arr = table.clone(arr)
-	local len = #new_arr
+local random_prototype = {
+	interger = CLASS_INTERGER,
+	float = CLASS_FLOAT,
+} :: RandomPrototype
 
-	for index, value in new_arr do
-		local random_index = int(index, len, seed)
-		new_arr[index] = new_arr[random_index]
-		new_arr[random_index] = value
+function random_prototype.normalized_vector(random)
+	SET_STATE(random)
+	local theta = math.random() * math.pi * 2
+	SET_STATE(random)
+	local u = math.random() * 2 - 1
+	local c = math.sqrt( 1 - u * u)
+
+	return vector.create(
+		c * math.cos(theta),
+		u,
+		c * math.sin(theta)
+	)
+end
+
+function random_prototype.vector(random, min, max)
+	max = max or vector.create(
+		CLASS_FLOAT(random),
+		CLASS_FLOAT(random),
+		CLASS_FLOAT(random)
+	)
+	min = min or vector.zero
+
+	return vector.create(
+		CLASS_FLOAT(random, min.x, max.x),
+		CLASS_FLOAT(random, min.y, max.y),
+		CLASS_FLOAT(random, min.z, max.z)
+	)
+end
+
+function random_prototype.shuffle(random, t)
+	for index, value in t do
+		local random_index = CLASS_INTERGER(random, index, #t)
+		t[index] = t[random_index]
+		t[random_index] = value
 	end
-	return new_arr
 end
 
-local function index<V>(arr: { V }, seed: number?): V
-	return arr[int(1, #arr, seed)]
+function random_prototype.index(random, t)
+	local index = CLASS_INTERGER(random, 1, #t)
+	return index, t[index]
 end
 
-local function get_seed(): number
+--[[
+	Generates pseudorandom numbers, vectors, and directions.
+]]
+local random = {
+	interger = INTERGER,
+	float = FLOAT,
+}
+
+--[[
+	Returns vector with random coordinates.
+]]
+function random.vector(min: vector?, max: vector?, seed: number?): vector
+	max = max or vector.create(
+		FLOAT(nil, nil, seed),
+		FLOAT(nil, nil, seed),
+		(FLOAT(nil, nil, seed))
+	)
+	min = min or vector.zero
+
+	return vector.create(
+		FLOAT(min.x, max.x, seed),
+		FLOAT(min.y, max.y, seed),
+		FLOAT(min.z, max.z, seed)
+	)
+end
+
+--[[
+	Returns a normalized vector (unit vector) with a pseudorandom direction.
+]]
+function random.normalized_vector(seed: number?): vector
+	SET_SEED(GET_SEED(seed))
+	local theta = math.random() * math.pi * 2
+	SET_SEED(GET_SEED(seed))
+	local u = math.random() * 2 - 1
+	local c = math.sqrt( 1 - u * u)
+
+	return vector.create(
+		c * math.cos(theta),
+		u,
+		c * math.sin(theta)
+	)
+end
+
+--[[
+	Returns a random value from an array-like table.
+]]
+function random.index<V>(t: { V }, seed: number?): V
+	return t[INTERGER(1, #t, seed)]
+end
+
+--[[
+	Uniformly shuffles an array-like table in-place.
+]]
+function random.shuffle<V>(t: { V }, seed: number?)
+	for index, value in t do
+		local random_index = INTERGER(index, #t, seed)
+		t[index] = t[random_index]
+		t[random_index] = value
+	end
+end
+
+--[[
+	Creates a new Random object, useful for not having to constantly pass around a seed variable.
+]]
+function random.create(seed: number?): Random
+	return setmetatable({
+		state = seed or CREATE_SEED()
+	}, random_prototype)
+end
+
+--[[
+	Returns the current seed being used for non-class random functions.
+]]
+function random.get_seed(): number
 	return SEED
 end
 
-local tbl = {
-	shuffle = shuffle,
-	seed = get_seed,
-	vector = vector,
-	float = float,
-	index = index,
-	int = int,
-}
+do
+	
+	random_prototype.__index = random_prototype
+	table.freeze(random_prototype)
+	table.freeze(random)
 
-local mt = {
-	__call = function(self: unknown, min: number?, max: number?, seed: number?): number
-		return int(min, max, seed)
-	end
-}
-mt.__index = mt
+end
 
--- calling this here so that if somebody calls seed() before the variable is set it doesnt come up nil
-SET_SEED()
-
-return table.freeze(setmetatable(tbl :: any, table.freeze(mt))) :: typeof(setmetatable(tbl, {} :: {
-	__call: (self: unknown, min: number?, max: number?, seed: number?) -> number
-}))
-
+return random
 
