@@ -98,7 +98,7 @@ for _, lib_doc in fs.readDir("docs") do
 end
 
 table.sort(LIBDOCS, function(a, b)
-	return #a.text > #b.text
+	return a > b
 end)
 
 local before_features = MATCH(HOME_SRC, "((.+)features:)")
@@ -111,6 +111,6 @@ for index, libdoc in LIBDOCS do
 	)
 end
 
-fs.writeFile("docs/.vitepress/sidebar-libs.json", serde.encode("json", LIBDOCS))
+--fs.writeFile("docs/.vitepress/sidebar-libs.json", serde.encode("json", LIBDOCS))
 fs.writeFile("docs/index.md", `{before_features}\n{table.concat(features)}---`)
 process.exit()
