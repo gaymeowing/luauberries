@@ -41,10 +41,11 @@ end
 
 -- Question Bases
 
-type BaseQuestionBase<TYPE, A, MAXL, MINL, F, T, B, R> = Range<{
+type BaseQuestionBase<TYPE, A, C,  MAXL, MINL, F, T, B, R> = Range<{
 	max_len: MAXL,
 	min_len: MINL,
 	required: R,
+	choices: C,
 	type: TYPE,
 	answer: A,
 	bonus: B,
@@ -52,42 +53,40 @@ type BaseQuestionBase<TYPE, A, MAXL, MINL, F, T, B, R> = Range<{
 	to: T,
 }>
 
-export type QuizQuestionBase<TYPE, A, MAXL, MINL, F, T> = 
-	| BaseQuestionBase<TYPE, A, MAXL, MINL, F, T, number | true, false>
-	| BaseQuestionBase<TYPE, A, MAXL, MINL, F, T, nil, true>
+export type QuizQuestionBase<TYPE, A, C, MAXL, MINL, F, T> = 
+	| BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, number | true, false>
+	| BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, nil, true>
 
-export type QuestionBase<TYPE, A, MAXL, MINL, F, T> = BaseQuestionBase<TYPE, A, MAXL, MINL, F, T, nil, false?>
+export type QuestionBase<TYPE, A, C, MAXL, MINL, F, T> = BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, nil, false?>
 
-export type AnswersOnlyQuizQuestionBase<TYPE, A> = QuizQuestionBase<TYPE, A, nil, nil, nil, nil>
-
-export type AnswersOnlyQuestionBase<TYPE, A> = QuestionBase<TYPE, A, nil, nil, nil, nil>
+export type AnswersOnlyQuizQuestionBase<TYPE, A> = QuizQuestionBase<TYPE, A, nil, nil, nil, nil, nil>
 
 -- Questions
 
-export type TextQuizQuestion = QuizQuestionBase<"Text", string, number?, number?, nil, nil>
-
-export type TextQuestion = QuestionBase<"Text", nil, number?, number?, nil, nil>
-
-export type MultipleChoiceQuestion = AnswersOnlyQuestionBase<"MultipleChoice", { string }>
+export type MultipleChoiceQuestion = QuestionBase<"MultipleChoice", nil, { string }, nil, nil, nil, nil>
 
 export type MultipleChoiceQuizQuestion = AnswersOnlyQuizQuestionBase<"MultipleChoice", {
 	incorrect: { string },
 	correct: { string }
 }>
 
-export type CheckboxesQuestion = AnswersOnlyQuestionBase<"Checkboxes", { string }>
+export type CheckboxesQuestion = QuestionBase<"Checkboxes", nil, { string }, nil, nil, nil, nil>
 
 export type CheckboxesQuizQuestion = AnswersOnlyQuizQuestionBase<"Checkboxes", {
 	incorrect: { string },
 	correct: { string },
 }>
 
+export type TextQuizQuestion = QuizQuestionBase<"Text", string, nil, number?, number?, nil, nil>
+
+export type TextQuestion = QuestionBase<"Text", nil, nil, number?, number?, nil, nil>
+
 export type ScaleQuizQuestion<F = number, T = number> = QuizQuestionBase<"Scale", Range<{
 	read from: F,
 	read to: T,
-}> | number, nil, nil, number, number>
+}> | number, nil, nil, nil, number, number>
 
-export type ScaleQuestion = QuestionBase<"Scale", nil, nil, nil, number, number>
+export type ScaleQuestion = QuestionBase<"Scale", nil, nil, nil, nil, number, number>
 
 -- Question Unions
 
@@ -198,16 +197,22 @@ type FormSerializer<N = string, QL = {}, FRI = nil> = setmetatable<{
 	form: Form<N, QL, FRI>
 }, FormSerializerPrototype<N, QL, FRI>>
 
-type FormBufferInfo = {
-	shuffle_questions: true?,
-	include_answers: true?,
+type BaseFormBufferInfo<SQ, IA, IQ, SC, R> = {
+	random_for_shuffling: R,
+	shuffle_questions: SQ,
+	include_questions: IQ,
+	include_answers: IA,
 }
+
+type FormBufferInfo = 
+	| BaseFormBufferInfo<true, boolean?, true?, random.Random>
+	| BaseFormBufferInfo<false?, nil>
 
 type FormPrototype<N = string, QL = {}, FRI = nil> = {
 	grade: ((form: Form<N, QL, FRI>, responce: FormResponce<FRI>) -> (boolean, number, { [QuestionResponce]: boolean })) &
 		((form: Form<N, QL, FRI>, responce: buffer) -> (boolean, number, { [QuestionId]: boolean })),
 	get_question: <QN>(form: Form<N, QL, FRI>, name: QN & keyof<QL>) -> index<QL, QN> & RegisteredQuestionInfo,
-	to_buffer: (form: Form<N, QL, FRI>, include_answers: boolean) -> buffer,
+	to_buffer: (form: Form<N, QL, FRI>, buffer_info: FormBufferInfo) -> buffer,
 	__index: FormPrototype<N, QL, FRI>,
 }
 
@@ -221,11 +226,12 @@ export type Form<N = string, QL = {}, FRI = nil> = setmetatable<({
 	| BaseFormInfo<boolean, false?, { QuizQuestion & RegisteredQuestionInfo }, N>
 )), FormPrototype<N, QL, FRI>>
 
-local WEAK_KEY_MT = { __mode = "k" }
-
-local SERIALIZER_INFO = setmetatable({}, WEAK_KEY_MT) :: { [FormSerializer]: SerializerInfo }
+-- qquestion is quizquestion its just quiz makes the variable too long
+local ERR_QQUESTION_FIELD_UNDEFINED = `[FORM]: question '%*' is a quiz '%*' question without the '%*' field defined in the answer table`
+local SERIALIZER_INFO = weak.create("k") :: { [FormSerializer]: SerializerInfo }
 local POINTS_PER_QUESTION = 100
 local DEFAULT_BONUS_POINTS = 50
+local FORMAT = string.format
 
 --TODO: replace return w type function
 local function GET_QUESTION(form: Form, name_or_id: string | QuestionId): MixedQuestion
@@ -246,14 +252,14 @@ local function GET_QUESTION(form: Form, name_or_id: string | QuestionId): MixedQ
 	return nil :: any
 end
 
-local function WRITE_BOOLEAN(b: buffer, offset: number, v: boolean)
-	buffer.writeu8(b, offset, if v == false then 0 else 1)
-end
-
 local function WRITE_SHORT_STRING(b: buffer, offset: number, s: string): number
 	buffer.writeu8(b, offset, #s)
 	buffer.writestring(b, offset + 1, s)
 	return offset + #s + 1
+end
+
+local function WRITE_BOOLEAN(b: buffer, offset: number, v: boolean)
+	buffer.writeu8(b, offset, if v == false then 0 else 1)
 end
 
 local function TYPE_TO_NUM(type: QuestionType): number
@@ -272,34 +278,6 @@ local function FREEZE_IF_NOT_FROZEN<T>(t: T & {}): T
 		table.freeze(t)
 	end
 	return t
-end
-
---[[
-	this is a seperate function because im a nerd, 
-	and dont want every question to store a is_quiz field 
-	(because its only ever needed for saving forms to a buffer)
-]]
-local function is_quiz_question(question: MixedQuestion): boolean
-	-- only quiz questions can have a bonus field
-	if question.bonus then
-		return true
-	end
-	local answer = question.answer
-
-	--[[
-		case 1: quiz questions are the only type of question where the type of the answer field may not be a table
-		cases 2-3: if the question has its answer field as a table, then only quiz questions will have the fields 
-			('correct' and 'incorrect') or ('from' and 'to')
-	]]
-	if 
-		type(answer) ~= "table" 
-		or (answer.correct and answer.incorrect)
-		or (answer.from and answer.to)
-	then
-		return true
-	end
-
-	return false
 end
 
 -- using the prototype types no workey :(
@@ -373,7 +351,7 @@ end
 	questions:
 		1 byte id
 		1 byte type
-		1 byte is_quiz
+		1 byte is_quiz 
 		1 byte required
 		1 byte bonus
 		1 byte name len
@@ -415,7 +393,8 @@ end
 				4 bytes answer len
 				0..4_294_967_295 bytes for answer
 ]]
-function registered_form.to_buffer(form)
+function registered_form.to_buffer(form: Form, info: FormBufferInfo?)
+	local include_answers = (info and info.include_answers) or true
 	local questions = form.questions
 	local name = form.name
 	local size = #name + 7
@@ -425,21 +404,27 @@ function registered_form.to_buffer(form)
 	]]
 	local offset = size
 
+	if info and info.shuffle_questions then
+		(info.shuffle_random or random.create()):shuffle(questions)
+	end
+
 	for _, question in questions do
 		local question_type: QuestionType = question.type
+		local answer = include_answers and question.answer
+
 		size += #question.name + 6
 
 		if question_type == "Scale" then
 			size += 2
 
-			if question.answer then
+			if answer then
 				size += 2
 			end
 		elseif question_type == "Text" then
 			size += 8
 
-			if question.answer then
-				size += #question.answer + 4
+			if answer then
+				size += #answer + 4
 			end
 		else
 			local answer_ids = question.answer_ids
@@ -447,6 +432,10 @@ function registered_form.to_buffer(form)
 
 			for _, choice in answer_ids do
 				size += #choice
+			end
+
+			if answer then
+				size += 1
 			end
 		end
 	end
@@ -461,24 +450,34 @@ function registered_form.to_buffer(form)
 	WRITE_SHORT_STRING(b, 6, name)
 
 	for _, question in questions do
-		local is_quiz = is_quiz_question(question)
+		local answer = include_answers and question.answer
 		local question_type = question.type
 
 		buffer.writeu8(b, offset, question.id)
 		offset += 1
 		buffer.writeu8(b, offset, TYPE_TO_NUM(question_type))
 		offset += 1
-		WRITE_BOOLEAN(b, offset, is_quiz)
+		WRITE_BOOLEAN(b, offset, answer ~= false)
 		offset += 1
 		WRITE_BOOLEAN(b, offset, question.required)
 		offset += 1
 		buffer.writeu8(b, offset, question.bonus or 0)
-		offset = WRITE_SHORT_STRING(b, offset + 1, s)
+		offset = WRITE_SHORT_STRING(b, offset + 1, question.name)
 
 		if question_type == "Scale" then
-			
+			buffer.writeu8(b, offset, question.from)
+			offset += 1
+			buffer.writeu8(b, offset, question.to)
+			offset += 1
+
+			if answer then
+				buffer.writeu8(b, offset, answer.from)
+				offset += 1
+				buffer.writeu8(b, offset, answer.to)
+				offset += 1
+			end
 		elseif question_type == "Text" then
-		
+			
 		else
 
 		end
@@ -501,28 +500,52 @@ function form.register<N, QL, FRI>(info: FormInfo<N, QL>): Form<N, QL, FRI>
 
 	for name, question: MixedQuestion in info.questions do
 		local answer = question.answer
+		local question_type = question.type
 
-		if type(answer) == "table" then
+		if question_type == "Scale" then
+			if type(answer) == "table" then
+				local from = answer.from
+				local to = answer.to
+
+				if to and not from then
+					error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "from"))
+				elseif from and not to then
+					error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "to"))
+				end
+
+				FREEZE_IF_NOT_FROZEN(answer)
+			else
+				question.answer = table.freeze({
+					from = answer,
+					to = answer,
+				})
+			end
+		elseif type(answer) == "table" then
 			local incorrect = answer.incorrect
 			local correct = answer.correct
-
+	
 			if incorrect and not correct then
-				error(`[FORM]: question '{name}' is a quiz question without the 'correct' field defined in the answer table`)
+				error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "correct"))
 			elseif correct and not incorrect then
-				error(`[FORM]: question '{name}' is a quiz question without the 'incorrect' field defined in the answer table`)
-			elseif correct and incorrect then
-				FREEZE_IF_NOT_FROZEN(incorrect)
-				FREEZE_IF_NOT_FROZEN(correct)
-				--TODO: need to reflect the answers_ids array in the type
-				question.answer_ids = table.move(
-					incorrect, 1, #incorrect, #correct + 1, 
-					table.clone(correct)
-				)
-			else
-				question.answer_ids = answer
+				error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "incorrect"))
 			end
+			--TODO: need to reflect the answers_ids array in the type
+			local answer_ids = table.move(
+				incorrect, 1, #incorrect, #correct + 1, 
+				table.clone(correct)
+			)
 
+			--[[
+				TODO: need to reflect that after registering the choices field isnt nil anymore
+				(waiting for type:issubtypeof() to be added so writing the type function for the form object isnt a pain)
+			]]
+			question.choices = table.clone(answer_ids)
+			question.answer_ids = answer_ids
+			FREEZE_IF_NOT_FROZEN(incorrect)
+			FREEZE_IF_NOT_FROZEN(correct)
 			FREEZE_IF_NOT_FROZEN(answer)
+		elseif question.choices then
+			question.answer_ids = table.clone(question.choices)
 		end
 
 		if question.bonus == true then

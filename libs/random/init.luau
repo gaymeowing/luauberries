@@ -124,7 +124,7 @@ function random_prototype.normalized_vector(random)
 	local theta = math.random() * math.pi * 2
 	SET_STATE(random)
 	local u = math.random() * 2 - 1
-	local c = math.sqrt( 1 - u * u)
+	local c = math.sqrt(1 - u * u)
 
 	return vector.create(
 		c * math.cos(theta),
@@ -195,7 +195,7 @@ function random.normalized_vector(seed: number?): vector
 	local theta = math.random() * math.pi * 2
 	SET_SEED(GET_SEED(seed))
 	local u = math.random() * 2 - 1
-	local c = math.sqrt( 1 - u * u)
+	local c = math.sqrt(1 - u * u)
 
 	return vector.create(
 		c * math.cos(theta),
