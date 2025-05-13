@@ -9,7 +9,7 @@ type RandomPrototype = {
 	--[[
 		Returns a pseudorandom integer uniformly distributed over `[min, max]`.
 	]]
-	interger: (self: Random, min: number?, max: number?) -> number,
+	integer: (self: Random, min: number?, max: number?) -> number,
 	--[[
 		Returns a pseudorandom vector uniformly distributed over `[min, max]`.
 	]]
@@ -29,7 +29,7 @@ type RandomPrototype = {
 	--[[
 		Returns a random value from an array-like table.
 	]]
-	index: <V>(self: Random, t: { V }) -> V,
+	value: <V>(self: Random, t: { V }) -> V,
 	__index: RandomPrototype
 }
 
@@ -75,7 +75,7 @@ end
 --[[
 	Returns a pseudorandom integer uniformly distributed over `[min, max]`.
 ]]
-local function INTERGER(min: number?, max: number?, seed: number?): number
+local function INTEGER(min: number?, max: number?, seed: number?): number
 	SET_SEED(GET_SEED(seed))
 	return math.random(min or DEFAULT_MIN, max or DEFAULT_MAX)
 end
@@ -99,9 +99,9 @@ local function SET_STATE(random: Random)
 	random.state = state
 end
 
-local function CLASS_INTERGER(random: Random, min: number?, max: number?): number
+local function CLASS_INTEGER(random: Random, min: number?, max: number?): number
 	SET_STATE(random)
-	return math.random(min or DEFAULT_MIN, max or DEFAULT_MIN)
+	return math.random(min or DEFAULT_MIN, max or DEFAULT_MAX)
 end
 
 local function CLASS_FLOAT(random: Random, min: number?, max: number?): number
@@ -115,7 +115,7 @@ local function CLASS_FLOAT(random: Random, min: number?, max: number?): number
 end
 
 local random_prototype = {
-	interger = CLASS_INTERGER,
+	integer = CLASS_INTEGER,
 	float = CLASS_FLOAT,
 } :: RandomPrototype
 
@@ -150,22 +150,21 @@ end
 
 function random_prototype.shuffle(random, t)
 	for index, value in t do
-		local random_index = CLASS_INTERGER(random, index, #t)
+		local random_index = CLASS_INTEGER(random, index, #t)
 		t[index] = t[random_index]
 		t[random_index] = value
 	end
 end
 
-function random_prototype.index(random, t)
-	local index = CLASS_INTERGER(random, 1, #t)
-	return index, t[index]
+function random_prototype.value(random, t)
+	return t[CLASS_INTEGER(random, 1, #t)]
 end
 
 --[[
 	Generates pseudorandom numbers, vectors, and directions.
 ]]
 local random = {
-	interger = INTERGER,
+	integer = INTEGER,
 	float = FLOAT,
 }
 
@@ -176,7 +175,7 @@ function random.vector(min: vector?, max: vector?, seed: number?): vector
 	max = max or vector.create(
 		FLOAT(nil, nil, seed),
 		FLOAT(nil, nil, seed),
-		(FLOAT(nil, nil, seed))
+		FLOAT(nil, nil, seed)
 	)
 	min = min or vector.zero
 
@@ -207,8 +206,8 @@ end
 --[[
 	Returns a random value from an array-like table.
 ]]
-function random.index<V>(t: { V }, seed: number?): V
-	return t[INTERGER(1, #t, seed)]
+function random.value<V>(t: { V }, seed: number?): V
+	return t[INTEGER(1, #t, seed)]
 end
 
 --[[
@@ -216,7 +215,7 @@ end
 ]]
 function random.shuffle<V>(t: { V }, seed: number?)
 	for index, value in t do
-		local random_index = INTERGER(index, #t, seed)
+		local random_index = INTEGER(index, #t, seed)
 		t[index] = t[random_index]
 		t[random_index] = value
 	end
