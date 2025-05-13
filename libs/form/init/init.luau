@@ -4,6 +4,7 @@
 	module for validating forms
 ]]
 
+local random = require("../random")
 local weak = require("../weak")
 
 export type QuestionType = "MultipleChoice" | "Text" | "Scale" | "Checkboxes"
@@ -197,11 +198,16 @@ type FormSerializer<N = string, QL = {}, FRI = nil> = setmetatable<{
 	form: Form<N, QL, FRI>
 }, FormSerializerPrototype<N, QL, FRI>>
 
+type FormBufferInfo = {
+	shuffle_questions: true?,
+	include_answers: true?,
+}
+
 type FormPrototype<N = string, QL = {}, FRI = nil> = {
 	grade: ((form: Form<N, QL, FRI>, responce: FormResponce<FRI>) -> (boolean, number, { [QuestionResponce]: boolean })) &
 		((form: Form<N, QL, FRI>, responce: buffer) -> (boolean, number, { [QuestionId]: boolean })),
 	get_question: <QN>(form: Form<N, QL, FRI>, name: QN & keyof<QL>) -> index<QL, QN> & RegisteredQuestionInfo,
-	to_buffer: (form: Form<N, QL, FRI>) -> buffer,
+	to_buffer: (form: Form<N, QL, FRI>, include_answers: boolean) -> buffer,
 	__index: FormPrototype<N, QL, FRI>,
 }
 
