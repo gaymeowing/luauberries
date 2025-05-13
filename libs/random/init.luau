@@ -157,8 +157,7 @@ function random_prototype.shuffle(random, t)
 end
 
 function random_prototype.value(random, t)
-	local index = CLASS_INTEGER(random, 1, #t)
-	return index, t[index]
+	return t[CLASS_INTEGER(random, 1, #t)]
 end
 
 --[[
