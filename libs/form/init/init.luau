@@ -197,16 +197,18 @@ type FormSerializer<N = string, QL = {}, FRI = nil> = setmetatable<{
 	form: Form<N, QL, FRI>
 }, FormSerializerPrototype<N, QL, FRI>>
 
-type BaseFormBufferInfo<SQ, IA, IQ, SC, R> = {
-	random_for_shuffling: R,
-	shuffle_questions: SQ,
-	include_questions: IQ,
-	include_answers: IA,
+type BaseFormBufferInfo<SQ, IA, IQ, II, R> = {
+	random_for_shuffling: R, -- default nil unless shuffle_questions is true 
+	shuffle_questions: SQ, -- default false
+	include_questions: IQ, -- default true
+	include_answers: IA, -- default true unless IQ is false
+	include_info: II, -- default true
 }
 
 type FormBufferInfo = 
-	| BaseFormBufferInfo<true, boolean?, true?, random.Random>
-	| BaseFormBufferInfo<false?, nil>
+	| BaseFormBufferInfo<true, boolean?, true?, boolean?, random.Random?> 
+	| BaseFormBufferInfo<false?, true?, true?, boolean?, nil> 
+	| BaseFormBufferInfo<false?, false?, false, true?, nil>
 
 type FormPrototype<N = string, QL = {}, FRI = nil> = {
 	grade: ((form: Form<N, QL, FRI>, responce: FormResponce<FRI>) -> (boolean, number, { [QuestionResponce]: boolean })) &
