@@ -9,6 +9,8 @@ local weak = require("../weak")
 
 export type QuestionType = "MultipleChoice" | "Text" | "Scale" | "Checkboxes"
 
+type BoolOrRandom = boolean | random.Random
+
 type function Range(t: type)
 	local from_not_num_err = "field 'from' must be of type 'number'"
 	local to_not_num_err = "field 'to' must be of type 'number'"
@@ -197,8 +199,8 @@ type FormSerializer<N = string, QL = {}, FRI = nil> = setmetatable<{
 	form: Form<N, QL, FRI>
 }, FormSerializerPrototype<N, QL, FRI>>
 
-type BaseFormBufferInfo<SQ, IA, IQ, II, R> = {
-	random_for_shuffling: R, -- default nil unless shuffle_questions is true 
+type BaseFormBufferInfo<SQC, SQ, IQ, IA, II> = {
+	shuffle_question_choices: SQC, -- default false
 	shuffle_questions: SQ, -- default false
 	include_questions: IQ, -- default true
 	include_answers: IA, -- default true unless IQ is false
@@ -206,9 +208,8 @@ type BaseFormBufferInfo<SQ, IA, IQ, II, R> = {
 }
 
 type FormBufferInfo = 
-	| BaseFormBufferInfo<true, boolean?, true?, boolean?, random.Random?> 
-	| BaseFormBufferInfo<false?, true?, true?, boolean?, nil> 
-	| BaseFormBufferInfo<false?, false?, false, true?, nil>
+	| BaseFormBufferInfo<BoolOrRandom?, BoolOrRandom?, true?, boolean?, boolean?> 
+	| BaseFormBufferInfo<false?, false?, false, false?, true> 
 
 type FormPrototype<N = string, QL = {}, FRI = nil> = {
 	grade: ((form: Form<N, QL, FRI>, responce: FormResponce<FRI>) -> (boolean, number, { [QuestionResponce]: boolean })) &
