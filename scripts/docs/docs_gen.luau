@@ -98,7 +98,7 @@ for _, lib_doc in fs.readDir("docs") do
 end
 
 table.sort(LIBDOCS, function(a, b)
-	return a > b
+	return a.text > b.text
 end)
 
 local before_features = MATCH(HOME_SRC, "((.+)features:)")
