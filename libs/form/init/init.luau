@@ -5,7 +5,6 @@
 ]]
 
 local random = require("../random")
-local weak = require("../weak")
 
 export type QuestionType = "MultipleChoice" | "Text" | "Scale" | "Checkboxes"
 
@@ -55,13 +54,13 @@ type BaseQuestionBase<TYPE, A, C,  MAXL, MINL, F, T, B, R> = Range<{
 	to: T,
 }>
 
-export type QuizQuestionBase<TYPE, A, C, MAXL, MINL, F, T> = 
+type QuizQuestionBase<TYPE, A, C, MAXL, MINL, F, T> = 
 	| BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, number | true, false>
 	| BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, nil, true>
 
-export type QuestionBase<TYPE, A, C, MAXL, MINL, F, T> = BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, nil, false?>
+type QuestionBase<TYPE, A, C, MAXL, MINL, F, T> = BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, nil, false?>
 
-export type AnswersOnlyQuizQuestionBase<TYPE, A> = QuizQuestionBase<TYPE, A, nil, nil, nil, nil, nil>
+type AnswersOnlyQuizQuestionBase<TYPE, A> = QuizQuestionBase<TYPE, A, nil, nil, nil, nil, nil>
 
 -- Questions
 
@@ -110,7 +109,7 @@ export type MixedQuestion =
 
 -- Question Responces
 
-export type QuestionResponceBase<T = QuestionType, R = string> = {
+type QuestionResponceBase<T = QuestionType, R = string> = {
 	question_name: string,
 	responce: R,
 	type: T,
@@ -159,45 +158,51 @@ export type FormResponce<T = nil> = {
 }
 
 --[[
+	choice buffer spec:
+	1 byte id
+	1 byte name len
+	0..255 bytes for name
+]]
+
+--[[
 	form responce buffer spec:
 	1 bytes for info len
-	variable bytes for info
+	0..255 bytes for info
 	variable bytes for questions
 
-	for each question:
-	1 byte question id
+	questions:
+		1 byte question id
 
-	checkboxes:
-	1 byte for choices len
-	variable bytes for the ids for each choice
+		checkboxes:
+			1 byte for choice ids len
+			variable bytes for choice ids
 
-	multiple choice:
-	1 byte for choice
+		multiple choice:
+			1 byte for choice id
 
-	scale:
-	1 byte for position on scale selected
+		scale:
+			1 byte for position on scale selected
 
-	text:
-	8 bytes float for len
-	variable bytes for string
+		text:
+			2 bytes for len
+			0..65_535 bytes for string
 ]]
-type SerializerInfo = {
-	buffers: { buffer },
-	b: buffer,
-}
-
-type FormSerializerPrototype<N = string, QL = {}, FRI = nil> = {
+type FormSerializerPrototype<F> = {
 	--TODO: replace the any for the answer param with a type function
-	record_question: (<QN>(serializer: FormSerializer<N, QL, FRI>, name: QN, answer: any) -> ()) &
-		((<QI>(serializer: FormSerializer<N, QL, FRI>, id: QI, answer: any) -> ())),
-	write_info: (serializer: FormSerializer<N, QL, FRI>, info: buffer) -> (),
-	finish: (serializer: FormSerializer<N, QL, FRI>) -> buffer,
-	__index: FormSerializerPrototype<N, QL, FRI>,
+	--TODO: constraint Q with index<index<F, "questions">> when https://github.com/luau-lang/luau/issues/1825 is fixed
+	record_question: <Q>(serializer: FormSerializer<F>, question: Q, answer: any) -> (),
+	write_info: (serializer: FormSerializer<F>, info: buffer) -> (),
+	finish: (serializer: FormSerializer<F>) -> buffer,
+	__index: FormSerializerPrototype<F>,
 }
 
-type FormSerializer<N = string, QL = {}, FRI = nil> = setmetatable<{
-	form: Form<N, QL, FRI>
-}, FormSerializerPrototype<N, QL, FRI>>
+type FormSerializer<F> = setmetatable<{
+	-- info_len and offset are private 
+	read info_len: number,
+	read buffer: buffer,
+	read offset: number,
+	read form: F,
+}, FormSerializerPrototype<F>>
 
 type BaseFormBufferInfo<SQC, SQ, IQ, IA, II> = {
 	shuffle_question_choices: SQC, -- default false
@@ -214,13 +219,16 @@ type FormBufferInfo =
 type FormPrototype<N = string, QL = {}, FRI = nil> = {
 	grade: ((form: Form<N, QL, FRI>, responce: FormResponce<FRI>) -> (boolean, number, { [QuestionResponce]: boolean })) &
 		((form: Form<N, QL, FRI>, responce: buffer) -> (boolean, number, { [QuestionId]: boolean })),
-	get_question: <QN>(form: Form<N, QL, FRI>, name: QN & keyof<QL>) -> index<QL, QN> & RegisteredQuestionInfo,
+	get_question: (<QN>(form: Form<N, QL, FRI>, name: QN & keyof<QL>) -> index<QL, QN> & RegisteredQuestionInfo) &
+		--TODO: replace the any return with a type function when interger literals are added
+		(<QI>(form: Form<N, QL, FRI>, id: QI) -> any),
+	get_serializer: (form: Form<N, QL, FRI>) -> FormSerializer<Form<N, QL, FRI>>,
 	to_buffer: (form: Form<N, QL, FRI>, buffer_info: FormBufferInfo) -> buffer,
 	__index: FormPrototype<N, QL, FRI>,
 }
 
 export type Form<N = string, QL = {}, FRI = nil> = setmetatable<({
-	read serializer: FormSerializer<N, QL, FRI>,
+	read max_responce_buffer_size: number,
 	read can_fully_autograde: boolean,
 	read min_points: number,
 } & (
@@ -231,38 +239,54 @@ export type Form<N = string, QL = {}, FRI = nil> = setmetatable<({
 
 -- qquestion is quizquestion its just quiz makes the variable too long
 local ERR_QQUESTION_FIELD_UNDEFINED = `[FORM]: question '%*' is a quiz '%*' question without the '%*' field defined in the answer table`
-local SERIALIZER_INFO = weak.create("k") :: { [FormSerializer]: SerializerInfo }
 local POINTS_PER_QUESTION = 100
 local DEFAULT_BONUS_POINTS = 50
 local FORMAT = string.format
 
---TODO: replace return w type function
-local function GET_QUESTION(form: Form, name_or_id: string | QuestionId): MixedQuestion
-	if type(name_or_id) == "number" then
-		for _, question in form.questions do
-			if question.id == name_or_id then
-				return question
-			end
-		end
-	else
-		for _, question in form.questions do
-			if question.name == name_or_id then
-				return question
-			end
-		end
-	end
-
-	return nil :: any
-end
-
 local function WRITE_SHORT_STRING(b: buffer, offset: number, s: string): number
 	buffer.writeu8(b, offset, #s)
-	buffer.writestring(b, offset + 1, s)
-	return offset + #s + 1
+	offset += 1
+	buffer.writestring(b, offset, s)
+	return offset + #s
+end
+
+local function WRITE_LONG_STRING(b: buffer, offset: number, s: string): number
+	buffer.writeu16(b, offset, #s)
+	offset += 2
+	buffer.writestring(b, offset, s)
+	return offset + #s
 end
 
 local function WRITE_BOOLEAN(b: buffer, offset: number, v: boolean)
 	buffer.writeu8(b, offset, if v == false then 0 else 1)
+end
+
+-- this guy doesnt inline so native it will be 
+@native
+local function WRITE_CHOICES(
+	b: buffer, offset: number, choices: { string },
+	answer_ids: { [number]: string }
+): number
+	buffer.writeu8(b, offset, #choices - 1)
+	offset += 1
+
+	for _, choice in choices do
+		buffer.writeu8(b, offset, table.find(answer_ids, choice) :: any)
+		offset = WRITE_SHORT_STRING(b, offset + 1, choice)
+	end
+	return offset
+end
+
+local function SHUFFLE<V>(t: { V }, bool_or_random: BoolOrRandom?)
+	if bool_or_random == true then
+		random.shuffle(t)
+	elseif bool_or_random then
+		bool_or_random:shuffle(t)
+	end
+end
+
+local function IF_NOT_INFO_THEN<I, V>(info: I, v: V): V | false
+	return not (info :: any) and (v :: any)
 end
 
 local function TYPE_TO_NUM(type: QuestionType): number
@@ -284,36 +308,48 @@ local function FREEZE_IF_NOT_FROZEN<T>(t: T & {}): T
 end
 
 -- using the prototype types no workey :(
-local serializer = {} :: getmetatable<FormSerializer>
+local form_serializer = {} :: getmetatable<FormSerializer<{}>>
 
-function serializer.record_question(serializer, name_or_id, answer)
-	local serializer_info = SERIALIZER_INFO[serializer]
-	local question = GET_QUESTION(serializer.form, name_or_id)
+function form_serializer.record_question(serializer, question, answer)
 
 end
 
-function serializer.write_info(serializer, info)
-	local serializer_info = SERIALIZER_INFO[serializer]
-	local len = buffer.len(info)
+function form_serializer.write_info(serializer, info)
+	local size = buffer.len(info)
+	local b = serializer.buffer
 
-	if len > 255 then
-		error("[FORM]: info buffer len cannot be greater than 255", 2)
+	if size > 256 then
+		error("[FORM]: info buffer len cannot be greater than 256", 2)
 	end
 	
-	local new_info = buffer.create(len + 1)
-	buffer.writeu8(new_info, 0, len)
-	buffer.copy(new_info, 1, info)
-	serializer_info.buffers[1] = new_info
+	serializer.info_size = size
+	buffer.writeu8(b, 0, size)
+	buffer.copy(b, 1, info)
 end
 
-function serializer.finish(serializer)
-	local serializer_info = SERIALIZER_INFO[serializer]
+function form_serializer.finish(serializer)
 
 end
 
-local registered_form = {
-	get_question = GET_QUESTION
-} :: getmetatable<Form>
+local form_prototype = {} :: getmetatable<Form>
+
+function form_prototype.get_question(form, name_or_id)
+	if type(name_or_id) == "number" then
+		for _, question in form.questions do
+			if question.id == name_or_id then
+				return question
+			end
+		end
+	else
+		for _, question in form.questions do
+			if question.name == name_or_id then
+				return question
+			end
+		end
+	end
+
+	return nil :: any
+end
 
 @native
 local function grade_buffer(
@@ -328,7 +364,7 @@ local function grade_table(
 	
 end
 
-function registered_form.grade(form, responce)
+function form_prototype.grade(form, responce)
 	if type(responce) == "buffer" then
 		return grade_buffer(form, responce)
 	else
@@ -346,11 +382,6 @@ end
 	1 byte name len
 	0..255 bytes for name
 
-	choice:
-		1 byte id
-		1 byte name len
-		0..255 bytes for name
-
 	questions:
 		1 byte id
 		1 byte type
@@ -360,23 +391,13 @@ end
 		1 byte name len
 		0..255 bytes for name
 
-		multiple choice:
+		multiple choice & checkboxes:
 			if is_quiz then
-				1 byte correct len
 				1 byte incorrect len
-				variable bytes for correct choices
 				variable bytes for incorrect choices
+				1 byte correct len
+				variable bytes for correct choices
 			else
-				1 byte choices len
-				variable bytes for choices
-
-		checkboxes:
-			if is_quiz then
-				1 byte correct len
-				1 byte incorrect len
-				variable bytes for correct choices
-				variable bytes for incorrect choices
-			else 
 				1 byte choices len
 				variable bytes for choices
 
@@ -389,104 +410,140 @@ end
 				1 byte for the answers to
 
 		text:
-			4 bytes min len
-			4 bytes max len
+			2 bytes min len
+			2 bytes max len
 
 			if is_quiz then
-				4 bytes answer len
-				0..4_294_967_295 bytes for answer
+				2 bytes answer len
+				0..65_535 bytes for answer
 ]]
-function registered_form.to_buffer(form: Form, info: FormBufferInfo?)
-	local include_answers = (info and info.include_answers) or true
+@native
+function form_prototype.to_buffer(form: Form, info: FormBufferInfo?)
+	local include_questions = (info and info.include_questions) or IF_NOT_INFO_THEN(info, true)
+	local include_answers = (info and include_questions and info.include_answers) or IF_NOT_INFO_THEN(info, true)
+	local include_info = (info and info.include_info) or IF_NOT_INFO_THEN(info, true)
+	local size = if include_info then #form.name + 7 else 0
 	local questions = form.questions
-	local name = form.name
-	local size = #name + 7
 	--[[
 		the starting offset is the same as the base size
 		so offset is declared here to save time
 	]]
 	local offset = size
 
-	if info and info.shuffle_questions then
-		(info.shuffle_random or random.create()):shuffle(questions)
-	end
+	if include_questions then
+		local shuffle_question_choices = info and include_questions and info.shuffle_question_choices
+		SHUFFLE(questions, info and info.shuffle_questions)
 
-	for _, question in questions do
-		local question_type: QuestionType = question.type
-		local answer = include_answers and question.answer
+		for _, question in questions do
+			local question_type: QuestionType = question.type
+			local answer = include_answers and question.answer
 
-		size += #question.name + 6
+			size += #question.name + 6
 
-		if question_type == "Scale" then
-			size += 2
-
-			if answer then
+			if question_type == "Scale" then
 				size += 2
-			end
-		elseif question_type == "Text" then
-			size += 8
 
-			if answer then
-				size += #answer + 4
-			end
-		else
-			local answer_ids = question.answer_ids
-			size += (#answer_ids * 2) + 1
+				if answer then
+					size += 2
+				end
+			elseif question_type == "Text" then
+				size += 4
 
-			for _, choice in answer_ids do
-				size += #choice
-			end
+				if answer then
+					size += #answer + 2
+				end
+			else
+				local choices = question.choices
+				size += (#choices * 2) + 1
 
-			if answer then
-				size += 1
+				SHUFFLE(choices, shuffle_question_choices)
+
+				for _, choice in choices do
+					size += #choice
+				end
+
+				if answer then
+					size += 1
+				end
 			end
 		end
 	end
 
 	local b = buffer.create(size)
 	
-	WRITE_BOOLEAN(b, 0, form.is_quiz)
-	WRITE_BOOLEAN(b, 1, form.can_fully_autograde)
-	WRITE_BOOLEAN(b, 2, form.award_partially_correct)
-	buffer.writeu16(b, 3, form.min_points)
-	buffer.writeu8(b, 5, #questions)
-	WRITE_SHORT_STRING(b, 6, name)
+	if include_info then
+		WRITE_BOOLEAN(b, 0, form.is_quiz)
+		WRITE_BOOLEAN(b, 1, form.can_fully_autograde)
+		WRITE_BOOLEAN(b, 2, form.award_partially_correct)
+		buffer.writeu16(b, 3, form.min_points)
+		buffer.writeu8(b, 5, #questions)
+		WRITE_SHORT_STRING(b, 6, form.name)
+	end
 
-	for _, question in questions do
-		local answer = include_answers and question.answer
-		local question_type = question.type
+	if include_questions then
+		for _, question in questions do
+			local answer = include_answers and question.answer
+			local question_type = question.type
 
-		buffer.writeu8(b, offset, question.id)
-		offset += 1
-		buffer.writeu8(b, offset, TYPE_TO_NUM(question_type))
-		offset += 1
-		WRITE_BOOLEAN(b, offset, answer ~= false)
-		offset += 1
-		WRITE_BOOLEAN(b, offset, question.required)
-		offset += 1
-		buffer.writeu8(b, offset, question.bonus or 0)
-		offset = WRITE_SHORT_STRING(b, offset + 1, question.name)
-
-		if question_type == "Scale" then
-			buffer.writeu8(b, offset, question.from)
+			buffer.writeu8(b, offset, question.id)
 			offset += 1
-			buffer.writeu8(b, offset, question.to)
+			buffer.writeu8(b, offset, TYPE_TO_NUM(question_type))
 			offset += 1
+			WRITE_BOOLEAN(b, offset, answer ~= nil)
+			offset += 1
+			WRITE_BOOLEAN(b, offset, question.required)
+			offset += 1
+			buffer.writeu8(b, offset, question.bonus)
+			offset = WRITE_SHORT_STRING(b, offset + 1, question.name)
 
-			if answer then
-				buffer.writeu8(b, offset, answer.from)
+			if question_type == "Scale" then
+				buffer.writeu8(b, offset, question.from)
 				offset += 1
-				buffer.writeu8(b, offset, answer.to)
+				buffer.writeu8(b, offset, question.to)
 				offset += 1
+
+				if answer then
+					buffer.writeu8(b, offset, answer.from)
+					offset += 1
+					buffer.writeu8(b, offset, answer.to)
+					offset += 1
+				end
+			elseif question_type == "Text" then
+				--[[
+					min/max len wont be nil because when registering if the form info doesnt have them defined
+					they get defined to the default min maxes
+				]]
+				buffer.writeu16(b, offset, question.min_len)
+				offset += 2
+				buffer.writeu16(b, offset, question.max_len)
+				offset += 2
+
+				if answer then
+					offset = WRITE_LONG_STRING(b, offset, answer)
+				end
+			else
+				local answer_ids = answer.answer_ids
+
+				if answer then
+					offset = WRITE_CHOICES(b, offset, answer.incorrect, answer_ids)
+					offset = WRITE_CHOICES(b, offset, answer.correct, answer_ids)
+				else
+					offset = WRITE_CHOICES(b, offset, answer.choices, answer_ids)
+				end
 			end
-		elseif question_type == "Text" then
-			
-		else
-
 		end
 	end
 
 	return b
+end
+
+function form_prototype.get_serializer(form)
+	return setmetatable({
+		buffer = buffer.create(form.max_responce_buffer_size),
+		info_len = 0,
+		offset = 256,
+		form = form,
+	}, form_serializer)
 end
 
 local form = {}
@@ -494,7 +551,6 @@ local form = {}
 --TODO: add overload for registering from a buffer
 function form.register<N, QL, FRI>(info: FormInfo<N, QL>): Form<N, QL, FRI>
 	local default_bonus_points = info.default_bonus_points or DEFAULT_BONUS_POINTS
-	local percent_to_pass = info.percent_to_pass or 70
 	-- this array is too complex to type here so its just becoming any
 	local questions_array = {} :: { any }
 	local can_fully_autograde = true
@@ -553,6 +609,8 @@ function form.register<N, QL, FRI>(info: FormInfo<N, QL>): Form<N, QL, FRI>
 
 		if question.bonus == true then
 			question.bonus = default_bonus_points
+		elseif not question.bonus then
+			question.bonus = 0
 		elseif question.required then
 			required_points += POINTS_PER_QUESTION
 		end
@@ -572,17 +630,12 @@ function form.register<N, QL, FRI>(info: FormInfo<N, QL>): Form<N, QL, FRI>
 		info.award_partially_correct = true
 	end
 
-	local serializer = table.freeze(setmetatable({ form = info }, serializer))
-	SERIALIZER_INFO[serializer] = {
-		buffers = {}
-	}
-
 	info.min_points = (required_points * (info.percent_to_pass or 70)) // 100
 	info.can_fully_autograde = can_fully_autograde
 	info.questions = questions_array
 	info.serializer = serializer
 
-	return table.freeze(setmetatable(info, registered_form))
+	return table.freeze(setmetatable(info, form_prototype))
 end
 
 @native
@@ -590,12 +643,16 @@ function form.get_responce_buffer_info(responce_buffer: buffer): buffer
 	
 end
 
+function form.serializer<F>(form: F): FormSerializer<F>
+	
+end
+
 do
 
-	registered_form.__index = registered_form
-	serializer.__index = serializer
-	table.freeze(registered_form)
-	table.freeze(serializer)
+	form_serializer.__index = form_serializer
+	form_prototype.__index = form_prototype :: any
+	table.freeze(form_serializer)
+	table.freeze(form_prototype)
 
 end
 
