@@ -111,6 +111,6 @@ for index, libdoc in LIBDOCS do
 	)
 end
 
---fs.writeFile("docs/.vitepress/sidebar-libs.json", serde.encode("json", LIBDOCS))
+fs.writeFile("docs/.vitepress/sidebar-libs.json", serde.encode("json", LIBDOCS))
 fs.writeFile("docs/index.md", `{before_features}\n{table.concat(features)}---`)
 process.exit()
