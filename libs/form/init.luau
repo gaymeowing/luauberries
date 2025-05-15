@@ -285,35 +285,6 @@ local function SET_READ_KEY<T, K>(t: T, k: K & keyof<T>, v: index<T, K>)
 	(t :: any)[k] = v
 end
 
-local function CLONE_AND_NORMALIZE_FORM_OR_FORM_INFO<F>(form_or_form_info: F): F
-	local questions = table.clone(form_or_form_info.questions)
-	local clone = table.clone(form_or_form_info)
-	clone.questions = questions
-
-	for key, question in questions do
-		local question_clone = table.clone(question)
-		local answer = question_clone.answer 
-
-		if question_clone.type == "Scale" then
-
-			answer = if type(answer) == "table" then
-					table.clone(answer)
-				else
-					{
-						from = answer,
-						to = answer,
-					}
-		elseif type(answer) == "table" then
-			answer = {
-				incorrect = table.clone(answer.incorrect),
-				correct = table.clone(answer.correct),
-			}
-		end
-	end
-
-	return clone
-end
-
 local function VALIDATE_FORM_CONFIG(
 	config: FormConfig<boolean?, boolean?, string>
 ): BaseFormConfig<boolean, number, number, boolean, string>
