@@ -10,6 +10,8 @@ export type QuestionType = "MultipleChoice" | "Text" | "Scale" | "Checkboxes"
 
 type BoolOrRandom = boolean | random.Random
 
+export type QuestionId = number
+
 type function Range(t: type)
 	local from_not_num_err = "field 'from' must be of type 'number'"
 	local to_not_num_err = "field 'to' must be of type 'number'"
@@ -131,13 +133,18 @@ export type QuestionResponce =
 
 -- Form
 
-type BaseFormInfo<APC, IQ, QL, N> = {
-	read default_bonus_points: number?,
+type BaseFormConfig<APC, DBP, PTP, IQ, N> = {
 	read award_partially_correct: APC,
-	read percent_to_pass: number?,
-	read questions: QL,
+	read default_bonus_points: DBP,
+	read percent_to_pass: PTP,
 	read is_quiz: IQ,
 	read name: N,
+}
+
+type FormConfig<APC, IQ, N> = BaseFormConfig<APC, number?, number?, IQ, N >
+
+type BaseFormInfo<APC, IQ, QL, N> = FormConfig<APC, IQ, N> & {
+	read questions: QL,
 }
 
 -- TODO: convert to type function instead of union when type:issubtypeof() is added
@@ -145,17 +152,22 @@ export type FormInfo<N = string, QL = {}> =
 	| BaseFormInfo<boolean?, false?, QL & { [string]: MixedQuestion }, N>
 	| BaseFormInfo<boolean?, true, QL & { [string]: QuizQuestion }, N>
 
-type QuestionId = number
+export type FormResponce<T = nil> = {
+	question_responces: { QuestionResponce },
+	info: T,
+}
 
 type RegisteredQuestionInfo = {
 	read id: QuestionId,
 	read name: string,
 }
 
-export type FormResponce<T = nil> = {
-	question_responces: { QuestionResponce },
-	info: T,
-}
+-- TODO: make into type function so is_quiz can be properly inferred 
+type Form<N = string, QL = {}, FRI = nil> = BaseFormInfo<boolean, boolean, { MixedQuestion & RegisteredQuestionInfo }, N> & {
+	read max_responce_buffer_size: number,
+	read can_fully_autograde: boolean,
+	read min_points: number,
+} 
 
 --[[
 	choice buffer spec:
@@ -163,7 +175,6 @@ export type FormResponce<T = nil> = {
 	1 byte name len
 	0..255 bytes for name
 ]]
-
 --[[
 	form responce buffer spec:
 	1 bytes for info len
@@ -191,8 +202,14 @@ type FormSerializerPrototype<F> = {
 	--TODO: replace the any for the answer param with a type function
 	--TODO: constraint Q with index<index<F, "questions">> when https://github.com/luau-lang/luau/issues/1825 is fixed
 	record_question: <Q>(serializer: FormSerializer<F>, question: Q, answer: any) -> (),
+	--[[
+		Appends 
+	]]
 	write_info: (serializer: FormSerializer<F>, info: buffer) -> (),
-	finish: (serializer: FormSerializer<F>) -> buffer,
+	--[[
+		Trims off empty unused bytes from the serializer's buffer, and gives a new buffer that has the exact size nessasary.
+	]]
+	trim: (serializer: FormSerializer<F>) -> buffer,
 	__index: FormSerializerPrototype<F>,
 }
 
@@ -204,6 +221,19 @@ type FormSerializer<F> = setmetatable<{
 	read form: F,
 }, FormSerializerPrototype<F>>
 
+--[[
+	TODO: use a type function for the add/remove question returns,
+		and remove add/remove returning any (this is currently because of recusrive type restrictions!! grr)
+]]
+type FormProducerPrototype<N, QL, IQ, FRI> = {
+	add_question: <QN, Q>(editor: FormProducer<N, QL, IQ, FRI>, name: QN, info: Q) -> any,
+	remove_question: <QN>(editor: FormProducer<N, QL, IQ, FRI>, name: QN) -> any,
+	finish: (editor: FormProducer<N, QL, IQ, FRI>) -> Form<N, QL, FRI>,
+	__index: FormProducerPrototype<N, QL, IQ, FRI>,
+}
+
+type FormProducer<N = string, QL = {}, IQ = false?, FRI = nil> = setmetatable<Form<N, QL>, FormProducerPrototype<N, QL, IQ, FRI>>
+
 type BaseFormBufferInfo<SQC, SQ, IQ, IA, II> = {
 	shuffle_question_choices: SQC, -- default false
 	shuffle_questions: SQ, -- default false
@@ -212,36 +242,112 @@ type BaseFormBufferInfo<SQC, SQ, IQ, IA, II> = {
 	include_info: II, -- default true
 }
 
-type FormBufferInfo = 
+export type FormBufferInfo = 
 	| BaseFormBufferInfo<BoolOrRandom?, BoolOrRandom?, true?, boolean?, boolean?> 
 	| BaseFormBufferInfo<false?, false?, false, false?, true> 
 
-type FormPrototype<N = string, QL = {}, FRI = nil> = {
-	grade: ((form: Form<N, QL, FRI>, responce: FormResponce<FRI>) -> (boolean, number, { [QuestionResponce]: boolean })) &
-		((form: Form<N, QL, FRI>, responce: buffer) -> (boolean, number, { [QuestionId]: boolean })),
-	get_question: (<QN>(form: Form<N, QL, FRI>, name: QN & keyof<QL>) -> index<QL, QN> & RegisteredQuestionInfo) &
+type Export = {
+	grade: (<N, QL, FRI>(form: Form<N, QL, FRI>, responce: FormResponce<FRI>) -> (boolean, number, { [QuestionResponce]: boolean })) &
+		(<N, QL, FRI>(form: Form<N, QL, FRI>, responce: buffer) -> (boolean, number, { [QuestionId]: boolean })),
+	get_question: (<N, QL, FRI, QN>(form: Form<N, QL, FRI>, name: QN & keyof<QL>) -> index<QL, QN> & RegisteredQuestionInfo) &
 		--TODO: replace the any return with a type function when interger literals are added
-		(<QI>(form: Form<N, QL, FRI>, id: QI) -> any),
-	get_serializer: (form: Form<N, QL, FRI>) -> FormSerializer<Form<N, QL, FRI>>,
-	to_buffer: (form: Form<N, QL, FRI>, buffer_info: FormBufferInfo) -> buffer,
-	__index: FormPrototype<N, QL, FRI>,
+		(<N, QL, FRI, QI>(form: Form<N, QL, FRI>, id: QI) -> any),
+	to_buffer: <N, QL, FRI>(form: Form<N, QL, FRI>, buffer_info: FormBufferInfo) -> buffer,
+	serializer: <N, QL, FRI>(form: Form<N, QL, FRI>) -> FormSerializer<Form<N, QL, FRI>>,
+	--[[
+		Registers a form so it can be used for grading
+	]]
+	register: (<N, QL, FRI>(info: FormInfo<N, QL>) -> Form<N, QL, FRI>) &
+		((form_buffer: buffer) -> Form),
+	--[[
+		Creates a FormProducer for creating a form using a config, useful for making UIs to create forms. 
+	]]
+	build: <FRI, APC, QL, IQ, N>(config: FormConfig<APC, IQ, N>) -> FormProducer<N, QL, IQ, FRI>,
+	--[[
+		Creates a FormProducer for editing a form, useful for making UIs to create forms. 
+	]]
+	edit: <N, QL, FRI, F>(form: F) -> FormProducer<N, QL, index<F, "is_quiz">, FRI>,
+	--[[
+		Returns a buffer with the info included in a responce buffer if any.
+	]]
+	get_info_from_repsonce_buffer: (responce_buffer: buffer) -> buffer?,
 }
 
-export type Form<N = string, QL = {}, FRI = nil> = setmetatable<({
-	read max_responce_buffer_size: number,
-	read can_fully_autograde: boolean,
-	read min_points: number,
-} & (
-	-- TODO: use a type function for converting QL to an array when numeric literals are added
-	| BaseFormInfo<boolean, false?, { MixedQuestion & RegisteredQuestionInfo }, N>
-	| BaseFormInfo<boolean, false?, { QuizQuestion & RegisteredQuestionInfo }, N>
-)), FormPrototype<N, QL, FRI>>
-
 -- qquestion is quizquestion its just quiz makes the variable too long
-local ERR_QQUESTION_FIELD_UNDEFINED = `[FORM]: question '%*' is a quiz '%*' question without the '%*' field defined in the answer table`
+local ERR_QQUESTION_FIELD_UNDEFINED = "[FORM]: question '%*' is a quiz '%*' question without the '%*' field defined in the answer table"
+local ERR_CFG_FIELD_RANGE = "[FORM]: config field '%*' cannot be %* than %*"
+local DEFAULT_PERCENT_TO_PASS = 70
 local POINTS_PER_QUESTION = 100
 local DEFAULT_BONUS_POINTS = 50
 local FORMAT = string.format
+
+local function SET_READ_KEY<T, K>(t: T, k: K & keyof<T>, v: index<T, K>)
+	(t :: any)[k] = v
+end
+
+local function CLONE_AND_NORMALIZE_FORM_OR_FORM_INFO<F>(form_or_form_info: F): F
+	local questions = table.clone(form_or_form_info.questions)
+	local clone = table.clone(form_or_form_info)
+	clone.questions = questions
+
+	for key, question in questions do
+		local question_clone = table.clone(question)
+		local answer = question_clone.answer 
+
+		if question_clone.type == "Scale" then
+
+			answer = if type(answer) == "table" then
+					table.clone(answer)
+				else
+					{
+						from = answer,
+						to = answer,
+					}
+		elseif type(answer) == "table" then
+			answer = {
+				incorrect = table.clone(answer.incorrect),
+				correct = table.clone(answer.correct),
+			}
+		end
+	end
+
+	return clone
+end
+
+local function VALIDATE_FORM_CONFIG(
+	config: FormConfig<boolean?, boolean?, string>
+): BaseFormConfig<boolean, number, number, boolean, string>
+	local default_bonus_points = config.default_bonus_points
+	local percent_to_pass = config.percent_to_pass
+
+	if default_bonus_points and default_bonus_points < 1 then
+		error(FORMAT(ERR_CFG_FIELD_RANGE, "default_bonus_points", 1), 3)	
+	end
+
+	if percent_to_pass then
+		if percent_to_pass < 1 then
+			error(FORMAT(ERR_CFG_FIELD_RANGE, "percent_to_pass", 1), 3)	
+		elseif percent_to_pass > 100 then
+			error(FORMAT(ERR_CFG_FIELD_RANGE, "percent_to_pass", 100), 3)
+		end
+	end
+
+	return {
+		default_bonus_points = default_bonus_points or DEFAULT_BONUS_POINTS,
+		award_partially_correct = config.award_partially_correct ~= nil,
+		percent_to_pass = percent_to_pass or DEFAULT_PERCENT_TO_PASS,
+		is_quiz = config.is_quiz ~= nil,
+		name = config.name,
+		--[[
+			preallocating the other fields nessasary, as these are going to be set later on
+			by either a FormProducer or form.register
+		]]
+		max_responce_buffer_size = nil,
+		can_fully_autograde = nil,
+		min_points = nil,
+		questions = nil,
+	}
+end
 
 local function WRITE_SHORT_STRING(b: buffer, offset: number, s: string): number
 	buffer.writeu8(b, offset, #s)
@@ -257,8 +363,8 @@ local function WRITE_LONG_STRING(b: buffer, offset: number, s: string): number
 	return offset + #s
 end
 
-local function WRITE_BOOLEAN(b: buffer, offset: number, v: boolean)
-	buffer.writeu8(b, offset, if v == false then 0 else 1)
+local function WRITE_BOOLEAN(b: buffer, offset: number, v: boolean?)
+	buffer.writeu8(b, offset, if v then 1 else 0)
 end
 
 -- this guy doesnt inline so native it will be 
@@ -311,6 +417,7 @@ end
 local form_serializer = {} :: getmetatable<FormSerializer<{}>>
 
 function form_serializer.record_question(serializer, question, answer)
+	local offset = serializer.offset
 
 end
 
@@ -327,13 +434,18 @@ function form_serializer.write_info(serializer, info)
 	buffer.copy(b, 1, info)
 end
 
-function form_serializer.finish(serializer)
+function form_serializer.trim(serializer)
 
 end
 
-local form_prototype = {} :: getmetatable<Form>
+local form = {} :: Export
 
-function form_prototype.get_question(form, name_or_id)
+@native
+function form.get_info_from_repsonce_buffer(responce_buffer)
+	
+end
+
+function form.get_question(form, name_or_id)
 	if type(name_or_id) == "number" then
 		for _, question in form.questions do
 			if question.id == name_or_id then
@@ -351,24 +463,104 @@ function form_prototype.get_question(form, name_or_id)
 	return nil :: any
 end
 
+local function register_info(info: FormInfo): Form
+	local default_bonus_points = info.default_bonus_points or DEFAULT_BONUS_POINTS
+	-- this array is too complex to type here so its just becoming any
+	local questions_array = {} :: { any }
+	local can_fully_autograde = true
+	local required_points = 0
+	local next_id = 0
+
+	for name, question: MixedQuestion in info.questions do
+		local answer = question.answer
+		local question_type = question.type
+
+		if question_type == "Scale" then
+			if type(answer) == "table" then
+				local from = answer.from
+				local to = answer.to
+
+				if to and not from then
+					error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "from"))
+				elseif from and not to then
+					error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "to"))
+				end
+
+				FREEZE_IF_NOT_FROZEN(answer)
+			else
+				question.answer = table.freeze({
+					from = answer,
+					to = answer,
+				})
+			end
+		elseif type(answer) == "table" then
+			local incorrect = answer.incorrect
+			local correct = answer.correct
+	
+			if incorrect and not correct then
+				error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "correct"))
+			elseif correct and not incorrect then
+				error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "incorrect"))
+			end
+			--TODO: need to reflect the answers_ids array in the type
+			local answer_ids = table.move(
+				incorrect, 1, #incorrect, #correct + 1, 
+				table.clone(correct)
+			)
+
+			--[[
+				TODO: need to reflect that after registering the choices field isnt nil anymore
+				(waiting for type:issubtypeof() to be added so writing the type function for the form object isnt a pain)
+			]]
+			question.choices = table.clone(answer_ids)
+			question.answer_ids = answer_ids
+			FREEZE_IF_NOT_FROZEN(incorrect)
+			FREEZE_IF_NOT_FROZEN(correct)
+			FREEZE_IF_NOT_FROZEN(answer)
+		elseif question.choices then
+			question.answer_ids = table.clone(question.choices)
+		end
+
+		if question.bonus == true then
+			question.bonus = default_bonus_points
+		elseif not question.bonus then
+			question.bonus = 0
+		elseif question.required then
+			required_points += POINTS_PER_QUESTION
+		end
+
+		if question.type == "Text" then
+			can_fully_autograde = false
+		end
+
+		table.insert(questions_array, question)
+		question.id = next_id
+		question.name = name
+		table.freeze(question)
+		next_id += 1
+	end
+
+	if info.award_partially_correct == nil then
+		info.award_partially_correct = true
+	end
+
+	info.min_points = (required_points * (info.percent_to_pass or 70)) // 100
+	info.can_fully_autograde = can_fully_autograde
+	info.questions = questions_array
+	return table.freeze(info)
+end
+
 @native
-local function grade_buffer(
-	form: Form, responce: buffer
-): (boolean, number, { [QuestionId]: boolean })
+local function register_buffer(b: buffer): Form
 	
 end
 
-local function grade_table(
-	form: Form, responce: FormResponce
-): (boolean, number, { [string]: boolean })
-	
-end
-
-function form_prototype.grade(form, responce)
-	if type(responce) == "buffer" then
-		return grade_buffer(form, responce)
+--TODO: add overload for registering from a buffer
+function form.register(info_or_buffer)
+	if type(info_or_buffer) == "buffer" then
+		return register_buffer(info_or_buffer)
 	else
-		return grade_table(form, responce)
+		return register_info(info_or_buffer)
 	end
 end
 
@@ -418,7 +610,7 @@ end
 				0..65_535 bytes for answer
 ]]
 @native
-function form_prototype.to_buffer(form: Form, info: FormBufferInfo?)
+function form.to_buffer(form, info)
 	local include_questions = (info and info.include_questions) or IF_NOT_INFO_THEN(info, true)
 	local include_answers = (info and include_questions and info.include_answers) or IF_NOT_INFO_THEN(info, true)
 	local include_info = (info and info.include_info) or IF_NOT_INFO_THEN(info, true)
@@ -537,7 +729,7 @@ function form_prototype.to_buffer(form: Form, info: FormBufferInfo?)
 	return b
 end
 
-function form_prototype.get_serializer(form)
+function form.serializer(form)
 	return setmetatable({
 		buffer = buffer.create(form.max_responce_buffer_size),
 		info_len = 0,
@@ -546,113 +738,67 @@ function form_prototype.get_serializer(form)
 	}, form_serializer)
 end
 
-local form = {}
-
---TODO: add overload for registering from a buffer
-function form.register<N, QL, FRI>(info: FormInfo<N, QL>): Form<N, QL, FRI>
-	local default_bonus_points = info.default_bonus_points or DEFAULT_BONUS_POINTS
-	-- this array is too complex to type here so its just becoming any
-	local questions_array = {} :: { any }
-	local can_fully_autograde = true
-	local required_points = 0
-	local next_id = 0
-
-	for name, question: MixedQuestion in info.questions do
-		local answer = question.answer
-		local question_type = question.type
-
-		if question_type == "Scale" then
-			if type(answer) == "table" then
-				local from = answer.from
-				local to = answer.to
-
-				if to and not from then
-					error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "from"))
-				elseif from and not to then
-					error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "to"))
-				end
-
-				FREEZE_IF_NOT_FROZEN(answer)
-			else
-				question.answer = table.freeze({
-					from = answer,
-					to = answer,
-				})
-			end
-		elseif type(answer) == "table" then
-			local incorrect = answer.incorrect
-			local correct = answer.correct
-	
-			if incorrect and not correct then
-				error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "correct"))
-			elseif correct and not incorrect then
-				error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "incorrect"))
-			end
-			--TODO: need to reflect the answers_ids array in the type
-			local answer_ids = table.move(
-				incorrect, 1, #incorrect, #correct + 1, 
-				table.clone(correct)
-			)
-
-			--[[
-				TODO: need to reflect that after registering the choices field isnt nil anymore
-				(waiting for type:issubtypeof() to be added so writing the type function for the form object isnt a pain)
-			]]
-			question.choices = table.clone(answer_ids)
-			question.answer_ids = answer_ids
-			FREEZE_IF_NOT_FROZEN(incorrect)
-			FREEZE_IF_NOT_FROZEN(correct)
-			FREEZE_IF_NOT_FROZEN(answer)
-		elseif question.choices then
-			question.answer_ids = table.clone(question.choices)
-		end
-
-		if question.bonus == true then
-			question.bonus = default_bonus_points
-		elseif not question.bonus then
-			question.bonus = 0
-		elseif question.required then
-			required_points += POINTS_PER_QUESTION
-		end
-
-		if question.type == "Text" then
-			can_fully_autograde = false
-		end
-
-		table.insert(questions_array, question)
-		question.id = next_id
-		question.name = name
-		table.freeze(question)
-		next_id += 1
-	end
-
-	if info.award_partially_correct == nil then
-		info.award_partially_correct = true
-	end
-
-	info.min_points = (required_points * (info.percent_to_pass or 70)) // 100
-	info.can_fully_autograde = can_fully_autograde
-	info.questions = questions_array
-	info.serializer = serializer
-
-	return table.freeze(setmetatable(info, form_prototype))
-end
-
 @native
-function form.get_responce_buffer_info(responce_buffer: buffer): buffer
+local function grade_buffer(
+	form: Form, responce: buffer
+): (boolean, number, { [QuestionId]: boolean })
 	
 end
 
-function form.serializer<F>(form: F): FormSerializer<F>
+local function grade_table(
+	form: Form, responce: FormResponce
+): (boolean, number, { [string]: boolean })
 	
+end
+
+function form.grade(form, responce)
+	if type(responce) == "buffer" then
+		return grade_buffer(form, responce)
+	else
+		return grade_table(form, responce)
+	end
+end
+
+function form.build(config)
+	return setmetatable(VALIDATE_FORM_CONFIG(config), form_producer)
+end
+
+function form.edit(form)
+	local questions = table.clone(form.questions)
+	local clone = table.clone(form)
+	clone.questions = questions
+
+	for index, question in questions do
+		local question_clone = table.clone(question)
+
+		if question_clone.type == "Scale" then
+			question_clone.answer = table.clone(question_clone.answer)
+		elseif type(question_clone.answer) == "table" then
+			local answer = question_clone.answer 
+
+			question_clone.answer = {
+				incorrect = table.clone(answer.incorrect),
+				correct = table.clone(answer.correct),
+			}
+			question_clone.answer_ids = table.clone(question_clone.answer_ids)
+		end
+
+		if question_clone.choices then
+			question_clone.choices = table.clone(question_clone.choices)
+		end
+
+		questions[index] = question_clone
+	end
+
+	return setmetatable(clone, form_producer)
 end
 
 do
 
 	form_serializer.__index = form_serializer
-	form_prototype.__index = form_prototype :: any
+	form_producer.__index = form_producer
 	table.freeze(form_serializer)
-	table.freeze(form_prototype)
+	table.freeze(form_producer)
 
 end
 
