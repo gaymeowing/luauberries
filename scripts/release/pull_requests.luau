@@ -2,7 +2,7 @@
 -- pull requests
 -- util for getting pull requests after a unix timestamp
 
-local first_release_time = require("first_release_time")
+local first_release_time = require("./first_release_time")
 local author_fix = require("./author_fix")
 local datetime = require("@lune/datetime")
 local serde = require("@lune/serde")
