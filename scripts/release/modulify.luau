@@ -81,14 +81,15 @@ local function modulify(lib: string): ModuleScript
 	local lib_init_path = if initdir_exists then initdir else `{initdir}.luau`
 	-- darklua doesnt support function attributes currently, so it'll fail if it runs into one
 	-- so im just having it output the rbxm using a string requires if it fails
-	local result = process.spawn("darklua", { "process", lib_init_path, DARKLUA_OUTPUT_DIR })
-	local result_path = if result.ok then DARKLUA_OUTPUT_DIR else libdir
+	local result = process.create("darklua", { "process", lib_init_path, DARKLUA_OUTPUT_DIR })
+	local is_ok = result:status().ok
+	local result_path = if is_ok then DARKLUA_OUTPUT_DIR else libdir
 	local module = if initdir_exists then
 			FROM_DIR(lib, result_path)
 		else
 			FROM_FILE(lib, fs.readFile(`{result_path}/init.luau`))
 	
-	if not result.ok then
+	if not is_ok then
 		warn(result.stderr)
 	end
 
