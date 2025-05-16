@@ -5,7 +5,7 @@
 -- sets roblox globals that dont exist in lune
 
 local roblox = require("@lune/roblox")
-local datetime = require("datetime")
+local datetime = require("./datetime")
 
 do
 	NumberSequenceKeypoint = roblox.NumberSequenceKeypoint

@@ -7,7 +7,7 @@
 
 local process = require("@lune/process")
 
-local OPTSs = {
+local OPTS = {
 	shell = if process.os == "windows" then "powershell" else "bash",
 	env = process.env :: any
 }

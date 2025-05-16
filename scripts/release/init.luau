@@ -2,17 +2,17 @@
 -- release
 -- makes new releases for each lib thats changed
 
-local first_release_time = require("first_release_time")
-local pull_requests = require("pull_requests")
-local diff_reader = require("../diff_reader")
-local impl = require("../mock/roblox/impl")
+local first_release_time = require("@self/first_release_time")
+local pull_requests = require("@self/pull_requests")
+local diff_reader = require("./diff_reader")
+local impl = require("./mock/roblox/impl")
 local DateTime = require("@lune/DateTime")
 local process = require("@lune/process")
 local serde = require("@lune/serde")
-local packager = require("packager")
-local summon = require("../summon")
-local libinfo = require("libinfo")
-local gitlog = require("gitlog")
+local packager = require("@self/packager")
+local summon = require("./summon")
+local libinfo = require("@self/libinfo")
+local gitlog = require("@self/gitlog")
 local fs = require("@lune/fs")
 
 type ReleaseLibInfo = {
