@@ -40,7 +40,7 @@ export default defineConfig({
 
 		// https://vitepress.dev/reference/default-theme-config
 		socialLinks: [
-			{ icon: 'github', link: 'https://github.com/kalrnlo/luauberries' },
+			{ icon: 'github', link: 'https://github.com/gaymeowing/luauberries' },
 			{ icon: 'discord', link: 'https://discord.gg/mchCdAFPWU' },
 		],
 		nav: [

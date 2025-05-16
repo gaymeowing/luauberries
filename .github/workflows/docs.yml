@@ -34,9 +34,9 @@ jobs:
       - name: Sort libraries
         run: lune run scripts/docs/docs_gen
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 22
           cache: npm
 
       - name: Build
@@ -48,4 +48,4 @@ jobs:
           
       - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@v3
+        uses: actions/deploy-pages@v4
