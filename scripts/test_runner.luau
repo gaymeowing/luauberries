@@ -11,6 +11,16 @@ local task = require("@lune/task")
 local fs = require("@lune/fs")
 local ansi = require("./ansi")
 
+-- table
+local function CLONE<V>(t: { V }): { V }
+	local clone = {}
+
+	for key, value in t do
+		clone[key] = value
+	end
+	return clone
+end
+
 local function get_libs_to_test(): { string }
 	local args = table.clone(process.args)
 	local first_arg = args[1]
