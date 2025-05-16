@@ -4,5 +4,8 @@
         "MultiLineStatement": false,
         "LocalShadow": false
     },
+    "aliases": {
+        "libs": "./libs"
+    },
     "globals": ["_RUNTIME"]
 }
