@@ -22,7 +22,6 @@ local function CLONE<V>(t: { V }): { V }
 end
 
 local function get_libs_to_test(): { string }
-	print(process.args)
 	local args = CLONE(process.args)
 	local first_arg = args[1]
 	local is_release = first_arg == "release"
