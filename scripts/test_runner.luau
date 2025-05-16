@@ -2,10 +2,9 @@
 -- test runner
 -- script for running tests for ci
 
+local libinfo = require("./release/libinfo")
 local diff_reader = require("./diff_reader")
-local mock_roblox = require("./mock/roblox")
 local process = require("@lune/process")
-local roblox = require("@lune/roblox")
 local depgraph = require("./depgraph")
 local task = require("@lune/task")
 local fs = require("@lune/fs")
@@ -59,17 +58,14 @@ local function get_libs_to_test(): { string }
 	return libs
 end
 
-do
-	-- https://github.com/lune-org/lune/issues/236
-	local part = roblox.Instance.new("Part")
-
-	pcall(function(part: { [string]: any })
-		part.Shutdown = 10
-	end, part)
-	mock_roblox()
-end
+--mock_roblox()
 
 for _, lib in get_libs_to_test() do
+	--TODO: make me not skip roblox libraries, via switching to using the open cloud execution api stuffs
+	if libinfo(lib).runtime == "roblox" then
+		continue
+	end
+
 	local path = `libs/{lib}/test`
 	local file_path = `{path}.luau`
 	local real_path: string

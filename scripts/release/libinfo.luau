@@ -17,7 +17,7 @@ type BaseLibInfo<R> = {
 	runtime: R,
 }
 
-type InternalLibInfo = BaseLibInfo<RuntimeInfo | string | nil>
+type InternalLibInfo = BaseLibInfo<RuntimeInfo | string>
 
 type LibInfo = BaseLibInfo<RuntimeInfo?>
 
@@ -46,6 +46,8 @@ local function libinfo(lib: string): LibInfo
 				end
 			end
 			raw.runtime = FREEZE(runtime) 
+		else
+			error(`no runtime specified for lib {lib}`)
 		end
 
 		CACHED_INFOS[lib] = FREEZE(raw) :: any
