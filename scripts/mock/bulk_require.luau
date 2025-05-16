@@ -20,7 +20,7 @@ local function bulk_require(dir: string): { [string]: { [any]: any } }
 	if not subdir then
 		error(`[BULK REQUIRE] subdir not found in dirstring {dir}`)
 	end
-	local format = `{subdir}/%*`
+	local format = `./{subdir}/%*`
 	local modules = {}
 
 	for _, module in fs.readDir(dir) do
