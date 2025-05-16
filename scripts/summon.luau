@@ -7,9 +7,18 @@
 
 local process = require("@lune/process")
 
+local function CLONE<V>(t: { V }): { V }
+	local clone = {}
+
+	for key, value in t do
+		clone[key] = value
+	end
+	return clone
+end
+
 local OPTS = {
 	shell = if process.os == "windows" then "powershell" else "bash",
-	env = process.env :: any
+	env = CLONE(process.env :: any)
 }
 
 local function summon(program: string, args: string?): string
