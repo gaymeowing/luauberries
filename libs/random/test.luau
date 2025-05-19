@@ -99,7 +99,6 @@ TEST("random", function()
 			local cf = (c :: any)[name] :: (...any) -> any
 
 			if f == random.value then
-				local x = type(cf(c, CAT_SOUNDS)) == type(f(CAT_SOUNDS))
 				CHECK(type(cf(c, CAT_SOUNDS)) == type(f(CAT_SOUNDS)))
 			elseif f == random.shuffle then
 				local a, b = table.clone(CAT_SOUNDS), table.clone(CAT_SOUNDS)
