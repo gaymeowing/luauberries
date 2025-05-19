@@ -6,14 +6,48 @@
 
 local random = require("@libs/random")
 
+type function singleton_is_number(t)
+	return if t.tag == "singleton" and type(t:value()) == "number" then
+			t
+		else
+			nil
+end
+
+type function singleton_is_string(t)
+	return if t.tag == "singleton" and type(t:value()) == "string" then
+			t
+		else
+			nil
+end
+
+type function get_array_length(a): number?
+	local has_iterated = false
+	local highest_index = 0
+
+	for index in a:properties() do
+		index = index:value()
+				
+		if index > highest_index then
+			highest_index = index
+		end
+		has_iterated = true
+	end
+
+	return if has_iterated then highest_index else nil
+end
+
 export type QuestionType = "MultipleChoice" | "Checkboxes" | "DateTime"
 	| "Scale" | "Date" | "Time" | "Text"
 
 type BoolOrRandom = boolean | random.Random
 
+type Bonus = true | number
+
+type StringOrStrings = { string } | string
+
 export type QuestionId = number
 
-type function Range(t: type)
+type function range(t: type)
 	local from_not_num_err = "field 'from' must be of type 'number'"
 	local to_not_num_err = "field 'to' must be of type 'number'"
 	local from = t:readproperty(types.singleton("from"))
@@ -45,7 +79,7 @@ end
 
 -- Question Bases
 
-type BaseQuestionBase<TYPE, A, C,  MAXL, MINL, F, T, B, R> = Range<{
+type BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B, R> = range<{
 	max_len: MAXL,
 	min_len: MINL,
 	required: R,
@@ -57,40 +91,169 @@ type BaseQuestionBase<TYPE, A, C,  MAXL, MINL, F, T, B, R> = Range<{
 	to: T,
 }>
 
-type QuizQuestionBase<TYPE, A, C, MAXL, MINL, F, T> = 
-	| BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, number | true, false>
+type QuizQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B = Bonus> = 
+	| BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B, false>
 	| BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, nil, true>
 
 type QuestionBase<TYPE, A, C, MAXL, MINL, F, T> = BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, nil, false?>
 
 type AnswersOnlyQuizQuestionBase<TYPE, A> = QuizQuestionBase<TYPE, A, nil, nil, nil, nil, nil>
 
+type function merge_table_and_string_singleton(t, s)
+	local indexer_result = (t :: type):indexer().readresult
+	local is_indexer_result_not_string = indexer_result.tag ~= "string"
+	local len = get_array_length(t)
+	local is_not_string = s.tag ~= "string"
+
+	if is_not_string and is_indexer_result_not_string then
+		t:setproperty(types.singleton(len + 1), s)
+	end
+
+	if is_not_string or is_indexer_result_not_string then
+		t:setindexer(types.number, types.unionof(s, indexer_result))
+	end
+
+	return t
+end
+
+type function merge_iccc(ic: type, cc: type)
+	if ic.tag == "union"and cc.tag == "union" then
+		return ic
+	end
+
+	local is_ic_string = ic.tag == "string"
+	local is_cc_string = ic.tag == "string"
+
+	if is_ic_string and is_cc_string then
+		return types.newtable(nil, {
+			index = types.number,
+			writeresult = cc,
+			readresult = cc,
+		})
+	elseif 
+		is_ic_string or singleton_is_string(ic) or 
+		is_cc_string or singleton_is_string(cc) 
+	then
+		local union = types.unionof(ic, cc)
+		return types.newtable(nil, {
+			writeresult = union,
+			readresult = union,
+			index = types.number,
+		})
+	end
+
+	local is_ic_table = ic.tag == "table"
+	local is_cc_table = cc.tag == "table"
+
+	if is_ic_table and is_cc_table then
+		local new_array = types.newtable()
+		local has_added = {}
+
+		for index, value in ic:properties() do
+			new_array:setproperty(index, value)
+			table.insert(has_added, value)
+		end
+		local ic_len = #has_added
+
+		for index, value in cc:properties() do
+			new_array:setproperty(types.singleton(ic_len + index:value()), value)
+			table.insert(has_added, value)
+		end
+
+		new_array:setindexer(index, result)
+		return new_array
+	elseif is_ic_table then
+		return merge_table_and_string_singleton(ic, cc)
+	elseif is_cc_table then
+		return merge_table_and_string_singleton(cc, ic)
+	else
+		error("invalid type for either IC or CC")
+	end
+end
+
+type function dont_allow_duplicates_in_choices_answer(choices_answer: type)
+	local duplicate_val_from_other_err = "table '%*' has a duplicate of value '%*' at %*; previously defined in table '%*' at index %*"
+	local duplicate_val_err = "table '%*' has a duplicate of value '%*' at %*; previously defined at index %*"
+	local incorrect = choices_answer:readproperty(types.singleton("incorrect")) :: type 
+	local correct = choices_answer:readproperty(types.singleton("correct")) :: type
+	local incorrect_values = {}
+	local correct_values = {}
+
+	if incorrect.tag == "table" then
+		for index, value in incorrect:properties() do
+			value = value.read	
+			local already_has = table.find(incorrect_values, value)
+		
+			if already_has then
+				error(string.format(duplicate_val_err, "incorrect", value, index:value(), already_has))
+			end
+			table.insert(incorrect_values, value)
+		end
+	end
+
+	if correct.tag == "table" then
+		for index, value in correct:properties() do
+			value = value.read
+			local already_has = table.find(correct_values, value)
+		
+			if already_has then
+				error(string.format(duplicate_val_err, "correct", value, index:value(), already_has))
+			end
+			table.insert(correct_values, value)
+		end
+	end
+
+	if incorrect.tag == "table" and correct.tag == "table" then
+		for index, value in incorrect_values do
+			local correct_index = table.find(correct_values, value)
+		
+			if correct_index then
+				error(string.format(duplicate_val_from_other_err, "incorrect", value, index, "correct", correct_index))
+			end
+		end
+
+		for index, value in correct_values do
+			local incorrect_index = table.find(correct_values, value)
+		
+			if incorrect_index then
+				error(string.format(duplicate_val_from_other_err, "correct", value, index, "incorrect", incorrect_index))
+			end
+		end
+	end
+
+	return choices_answer
+end
+
+type ChoicesQuizQuestion<T, IC, CC, B> = QuizQuestionBase<T, dont_allow_duplicates_in_choices_answer<{
+	read incorrect: IC,
+	read correct: CC,
+}>, merge_iccc<IC, CC>, nil, nil, nil, nil, B>
+
+type ChoicesQuestion<T, C> = QuestionBase<T, nil, C, nil, nil, nil, nil>
+
 -- Questions
 
-export type MultipleChoiceQuestion = QuestionBase<"MultipleChoice", nil, { string }, nil, nil, nil, nil>
+export type MultipleChoiceQuestion<C = { string }> = ChoicesQuestion<"MultipleChoice", C>
 
-export type MultipleChoiceQuizQuestion = AnswersOnlyQuizQuestionBase<"MultipleChoice", {
-	incorrect: { string },
-	correct: { string }
-}>
+export type MultipleChoiceQuizQuestion<IC = StringOrStrings, CC = StringOrStrings, B = Bonus> = ChoicesQuizQuestion<"MultipleChoice", IC, CC, B>
 
-export type CheckboxesQuestion = QuestionBase<"Checkboxes", nil, { string }, nil, nil, nil, nil>
+export type CheckboxesQuestion<C = { string }> = ChoicesQuestion<"Checkboxes", C>
 
-export type CheckboxesQuizQuestion = AnswersOnlyQuizQuestionBase<"Checkboxes", {
-	incorrect: { string },
-	correct: { string },
-}>
+export type CheckboxesQuizQuestion<IC = string, CC = string> = QuizQuestionBase<"Checkboxes", {
+	incorrect: { IC },
+	correct: { CC },
+}, { IC & CC }, nil, nil, nil, nil>
 
-export type TextQuizQuestion = QuizQuestionBase<"Text", string, nil, number?, number?, nil, nil>
+export type TextQuizQuestion<B, A = string, MINL = number?, MAXL = number?> = QuizQuestionBase<"Text", A, nil, MINL, MAXL, nil, nil>
 
-export type TextQuestion = QuestionBase<"Text", nil, nil, number?, number?, nil, nil>
+export type TextQuestion<MINL = number?, MAXL = number?> = QuestionBase<"Text", nil, nil, MINL, MAXL, nil, nil>
 
-export type ScaleQuizQuestion<F = number, T = number> = QuizQuestionBase<"Scale", Range<{
+export type ScaleQuizQuestion<AF = number, AT = number, A = number, F = number, T = number> = QuizQuestionBase<"Scale", Range<{
 	read from: F,
 	read to: T,
-}> | number, nil, nil, nil, number, number>
+}> | A, nil, nil, nil, F, T>
 
-export type ScaleQuestion = QuestionBase<"Scale", nil, nil, nil, nil, number, number>
+export type ScaleQuestion<F = number, T = number> = QuestionBase<"Scale", nil, nil, nil, nil, F, T>
 
 type TimeInfo = {
 	hour: number,
@@ -238,11 +401,28 @@ type FormSerializer<F> = setmetatable<{
 	read form: F,
 }, FormSerializerPrototype<F>>
 
+type ProducerFinish<P, R> = {
+	finish: (producer: P) -> R,
+}
+
+type QuestionProducerFinish<P> = ProducerFinish<P, index<P, "question">>
+
+type MultipleChoiceProducerPrototype<N, C> = QuestionProducerFinish<MultipleChoiceQuestionProducer<N, C>> {
+
+	__index: MultipleChoiceProducerPrototype
+}
+
+type MultipleChoiceQuestionProducer<N, C> = setmetatable<{
+	question: 
+	choices: C,
+	name: N,
+}, MultipleChoiceProducerPrototype<N, C>>
+
 --[[
 	TODO: use a type function for the add/remove question returns,
 		and remove add/remove returning any (this is currently because of recusrive type restrictions!! grr)
 ]]
-type FormProducerPrototype<N, QL, IQ, FRI> = {
+type FormProducerPrototype<N, QL, IQ, FRI> = ProducerPrototype<T>  {
 	add_question: <QN, Q>(editor: FormProducer<N, QL, IQ, FRI>, name: QN, info: Q) -> any,
 	remove_question: <QN>(editor: FormProducer<N, QL, IQ, FRI>, name: QN) -> any,
 	finish: (editor: FormProducer<N, QL, IQ, FRI>) -> Form<N, QL, FRI>,
