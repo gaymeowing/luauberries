@@ -2,17 +2,16 @@
 -- release
 -- makes new releases for each lib thats changed
 
-local first_release_time = require("first_release_time")
-local pull_requests = require("pull_requests")
+local first_release_time = require("@self/first_release_time")
+local pull_requests = require("@self/pull_requests")
 local diff_reader = require("../diff_reader")
-local impl = require("../mock/roblox/impl")
 local DateTime = require("@lune/DateTime")
 local process = require("@lune/process")
 local serde = require("@lune/serde")
-local packager = require("packager")
+local packager = require("@self/packager")
 local summon = require("../summon")
-local libinfo = require("libinfo")
-local gitlog = require("gitlog")
+local libinfo = require("@self/libinfo")
+local gitlog = require("@self/gitlog")
 local fs = require("@lune/fs")
 
 type ReleaseLibInfo = {
@@ -22,11 +21,11 @@ type ReleaseLibInfo = {
 	name: string,
 }
 
-local BASE_REPO_URL = "https://github.com/kalrnlo/luauberries"
+local BASE_REPO_URL = "https://github.com/gaymeowing/luauberries"
 local BASE_COMMIT_URL = `{BASE_REPO_URL}/commits/`
 local BASE_PULL_URL = `{BASE_REPO_URL}/pull/`
 
-local RELEASES = summon("gh", "release list --repo kalrnlo/luauberries --limit 500")
+local RELEASES = summon("gh", "release list --repo gaymeowing/luauberries --limit 500")
 local LIBS_CHANGED = diff_reader.libs()
 local ARGS = process.args
 
@@ -38,15 +37,12 @@ local LIB_LIST: { string } = if ARGS[1] == "all" then
 		LIBS_CHANGED
 local RELEASE_LIBS = table.create(#LIB_LIST) :: { ReleaseLibInfo }
 
--- local CREATE = roblox.Instance.new
 local GMATCH = string.gmatch
 
 local function write_and_insert(t: { string }, path: string, contents: string | buffer)
 	fs.writeFile(path, contents)
 	table.insert(t, path)
 end
-
-impl("ModuleScript"):rwprop("Source", "")
 
 for index, lib in LIB_LIST do
 	local pattern = `{lib} v%d+%.%d+%.%d+\t([^\t]-)\t{lib}@%d+%.%d+%.%d+\t(%S+)`
