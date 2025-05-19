@@ -145,47 +145,47 @@ local function CREATE_METHOD_NO_ARG<S, R>(
 	end
 end
 
-local function INTEGER<V>(
-	set_state: (v: V) -> (), min: number, max: number, v: V
+local function INTEGER<S>(
+	set_state: SetState<S>, min: number, max: number, state: S
 ): number
-	set_state(v)
+	set_state(state)
 	-- if math.random isnt wrapped here it wont inline 
 	return (math.random(min, max))
 end
 
-local function FLOAT<V>(
-	set_state: (v: V) -> (), min: number, max: number, v: V
+local function FLOAT<S>(
+	set_state: SetState<S>, min: number, max: number, state: S
 ): number
-	set_state(v)
+	set_state(state)
 	return min + (math.random() * (max - min))
 end
 
-local function VALUE<V>(set_state: SetState<V>, t: { unknown }, v: V): unknown
-	return t[INTEGER(set_state, 1, #t, v)]
+local function VALUE<S>(set_state: SetState<S>, t: { unknown }, state: S): unknown
+	return t[INTEGER(set_state, 1, #t, state)]
 end
 
-local function SHUFFLE<V>(set_state: SetState<V>, t: { unknown }, v: V)
+local function SHUFFLE<S>(set_state: SetState<S>, t: { unknown }, state: S)
 	for index, value in t do
-		local random_index = INTEGER(set_state, index, #t, v)
+		local random_index = INTEGER(set_state, index, #t, state)
 		t[index] = t[random_index]
 		t[random_index] = value
 	end
 end
 
-local function EXPORT_INTEGER<V>(
-	set_state: SetState<V>, min: number?, max: number?, v: V
+local function EXPORT_INTEGER<S>(
+	set_state: SetState<S>, min: number?, max: number?, state: S
 ): number
-	return INTEGER(set_state, min or DEFAULT_MIN, max or DEFAULT_MAX, v)
+	return INTEGER(set_state, min or DEFAULT_MIN, max or DEFAULT_MAX, state)
 end
 
-local function EXPORT_FLOAT<V>(
-	set_state: SetState<V>, min: number?, max: number?, v: V
+local function EXPORT_FLOAT<S>(
+	set_state: SetState<S>, min: number?, max: number?, state: S
 ): number
-	return FLOAT(set_state, min or DEFAULT_MIN, max or DEFAULT_MAX, v)
+	return FLOAT(set_state, min or DEFAULT_MIN, max or DEFAULT_MAX, state)
 end
 
-local function VECTOR<V>(
-	set_state: SetState<V>, min: vector?, max: vector?, v: V
+local function VECTOR<S>(
+	set_state: SetState<S>, min: vector?, max: vector?, state: S
 ): vector
 	if not max then
 		max = DEFAULT_MAX_VECTOR
@@ -196,26 +196,26 @@ local function VECTOR<V>(
 	end
 
 	return vector.create(
-		FLOAT(set_state, min.x, max.x, v),
-		FLOAT(set_state, min.y, max.y, v),
-		FLOAT(set_state, min.z, max.z, v)
+		FLOAT(set_state, min.x, max.x, state),
+		FLOAT(set_state, min.y, max.y, state),
+		FLOAT(set_state, min.z, max.z, state)
 	)
 end
 
-local function NORMALIZED_VECTOR<V>(
-	set_state: SetState<V>, v: V
+local function NORMALIZED_VECTOR<S>(
+	set_state: SetState<S>, state: S
 ): vector
 	--[[
 		doing this because normalized_vector is weird and only takes in a seed or random arg
 		so its just easier to do defaults here + if its a method on the class the first arg should never be nil
 	]]
-	if not v then
-		v = SEED :: any
+	if not state then
+		state = SEED :: any
 	end
 
-	set_state(v)
+	set_state(state)
 	local theta = math.random() * math.pi * 2
-	set_state(v)
+	set_state(state)
 	local u = math.random() * 2 - 1
 	local c = math.sqrt(1 - u * u)
 
