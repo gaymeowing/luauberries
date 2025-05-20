@@ -92,7 +92,7 @@ type BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B, R> = range<{
 }>
 
 type QuizQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B = Bonus> = 
-	| BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B, false>
+	| BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B, false?>
 	| BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, nil, true>
 
 type QuestionBase<TYPE, A, C, MAXL, MINL, F, T> = BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, nil, false?>
@@ -244,7 +244,7 @@ export type CheckboxesQuizQuestion<IC = string, CC = string> = QuizQuestionBase<
 	correct: { CC },
 }, { IC & CC }, nil, nil, nil, nil>
 
-export type TextQuizQuestion<B, A = string, MINL = number?, MAXL = number?> = QuizQuestionBase<"Text", A, nil, MINL, MAXL, nil, nil>
+export type TextQuizQuestion<B, A = string?, MINL = number?, MAXL = number?> = QuizQuestionBase<"Text", A, nil, MINL, MAXL, nil, nil>
 
 export type TextQuestion<MINL = number?, MAXL = number?> = QuestionBase<"Text", nil, nil, MINL, MAXL, nil, nil>
 
@@ -255,39 +255,42 @@ export type ScaleQuizQuestion<AF = number, AT = number, A = number, F = number, 
 
 export type ScaleQuestion<F = number, T = number> = QuestionBase<"Scale", nil, nil, nil, nil, F, T>
 
-type TimeInfo<S = number, M = number, H = number> = {
+export type TimeInfo<S = number, M = number, H = number> = {
 	hour: H,
 	sec: S,
 	min: M,
 }
 
 --TODO: in future when number libterals exist use a type function for insuring a range for the day arg
-type DateInfo<D = number, M = number, Y = number> = {
+export type DateInfo<D = number, M = number, Y = number> = {
 	month: M,
 	year: Y,
 	day: D,
 }
 
-type DateTimeInfo<S = number, MIN = number, H = number, D = number, MONTH = number, Y = number> = DateInfo<D, MONTH, Y> & TimeInfo<S, MIN, H>
+export type DateTimeInfo<
+	S = number, MIN = number, H = number, 
+	D = number, MONTH = number, Y = number
+> = DateInfo<D, MONTH, Y> & TimeInfo<S, MIN, H>
 
 export type DateTimeQuizQuestion<F = DateTimeInfo?, T = DateTimeInfo?, A = {
 	from: DateTimeInfo,
 	to: DateTimeInfo,
-}, B = Bonus> = QuizQuestionBase<"DateTime", A, nil, nil, nil, F, T, B>
+}?, B = Bonus> = QuizQuestionBase<"DateTime", A, nil, nil, nil, F, T, B>
 
 export type DateTimeQuestion<F = DateTimeInfo?, T = DateTimeInfo?> = QuestionBase<"DateTime", nil, nil, nil, nil, F, T>
 
 export type DateQuizQuestion<F = DateInfo?, T = DateInfo?, A = {
 	from: DateInfo,
 	to: DateInfo,
-}, B = Bonus> = QuizQuestionBase<"Date", A, nil, nil, nil, F, T, B>
+}?, B = Bonus> = QuizQuestionBase<"Date", A, nil, nil, nil, F, T, B>
 
 export type DateQuestion<F = DateInfo?, T = DateInfo?> = QuestionBase<"Date", nil, nil, nil, nil, F, T>
 
 export type TimeQuizQuestion<F = TimeInfo?, T = TimeInfo?, A = {
 	from: TimeInfo,
 	to: TimeInfo,
-}, B = Bonus> = QuizQuestionBase<"Time", A, nil, nil, nil, F, T, B>
+}?, B = Bonus> = QuizQuestionBase<"Time", A, nil, nil, nil, F, T, B>
 
 export type TimeQuestion<F = TimeInfo?, T = TimeInfo?> = QuestionBase<"Time", nil, nil, nil, nil, F, T>
 
