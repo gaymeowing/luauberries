@@ -1,0 +1,8 @@
+tags = [
+    "applications",
+    "forms",
+]
+version = "0.1.0"
+
+[runtime]
+main = "pure"
