@@ -25,9 +25,18 @@ local BASE_REPO_URL = "https://github.com/gaymeowing/luauberries"
 local BASE_COMMIT_URL = `{BASE_REPO_URL}/commits/`
 local BASE_PULL_URL = `{BASE_REPO_URL}/pull/`
 
+local function CLONE<V>(t: { V }): { V }
+	local clone = {}
+
+	for key, value in t do
+		clone[key] = value
+	end
+	return clone
+end
+
 local RELEASES = summon("gh", "release list --repo gaymeowing/luauberries --limit 500")
 local LIBS_CHANGED = diff_reader.libs()
-local ARGS = process.args
+local ARGS = CLONE(process.args)
 
 local LIB_LIST: { string } = if ARGS[1] == "all" then
 		fs.readDir("libs")
