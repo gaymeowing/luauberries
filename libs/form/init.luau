@@ -48,8 +48,6 @@ type StringOrStrings = { string } | string
 export type QuestionId = number
 
 type function range(t: type)
-	local from_not_num_err = "field 'from' must be of type 'number'"
-	local to_not_num_err = "field 'to' must be of type 'number'"
 	local from = t:readproperty(types.singleton("from"))
 	local to = t:readproperty(types.singleton("to")) 
 
@@ -68,10 +66,6 @@ type function range(t: type)
 		if fromv > tov then
 			error("field 'from' cannot be greater than field 'to'")
 		end
-	elseif not from:is("nil") and not from:is("number") then
-		error(from_not_num_err)
-	elseif not to:is("nil") and not to:is("number") then
-		error(to_not_num_err)
 	end
 
 	return t
@@ -79,7 +73,7 @@ end
 
 -- Question Bases
 
-type BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B, R> = range<{
+type BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B, R> = {
 	max_len: MAXL,
 	min_len: MINL,
 	required: R,
@@ -89,11 +83,44 @@ type BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B, R> = range<{
 	bonus: B,
 	from: F,
 	to: T,
-}>
+}
 
-type QuizQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B = Bonus> = 
+type function SET_PROPERTY(t: type, name: string, value: type)
+	t:setproperty(types.singleton(name), value)
+end
+
+type function QuizQuestionBaseFunc(
+	required, type, answer, choices, max_len, min_len, from, to, bonus,
+	BaseQuestionBase: type
+)
+	SET_PROPERTY(BaseQuestionBase, "max_len", max_len)
+	SET_PROPERTY(BaseQuestionBase, "min_len", min_len)
+	SET_PROPERTY(BaseQuestionBase, "choices", choices)
+	SET_PROPERTY(BaseQuestionBase, "answer", answer)
+	SET_PROPERTY(BaseQuestionBase, "type", type)
+	SET_PROPERTY(BaseQuestionBase, "from", from)
+	SET_PROPERTY(BaseQuestionBase, "to", to)
+
+	if required.tag == "singleton" and required:value() then
+		SET_PROPERTY(BaseQuestionBase, "bonus", types.singleton(nil))
+		SET_PROPERTY(BaseQuestionBase, "required", required)
+	else
+		SET_PROPERTY(BaseQuestionBase, "required", required)
+		SET_PROPERTY(BaseQuestionBase, "bonus", bonus)
+	end
+
+	return BaseQuestionBase
+end
+
+--[[
+type QuizQuestionBase<R, TYPE, A, C, MAXL, MINL, F, T, B = Bonus> = 
 	| BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B, false?>
 	| BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, nil, true>
+]]
+
+type QuizQuestionBase<TYPE, A, C, MAXL, MINL, F, T, R, B> = QuizQuestionBaseFunc<
+	R, TYPE, A, C, MAXL, MINL, F, T, B, BaseQuestionBase<nil, nil, nil, nil, nil, nil, nil, nil, nil>
+>
 
 type QuestionBase<TYPE, A, C, MAXL, MINL, F, T> = BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, nil, false?>
 
@@ -222,10 +249,10 @@ type function dont_allow_duplicates_in_choices_answer(choices_answer: type)
 	return choices_answer
 end
 
-type ChoicesQuizQuestion<T, IC, CC, B> = QuizQuestionBase<T, dont_allow_duplicates_in_choices_answer<{
+type ChoicesQuizQuestion<T, IC, CC, R, B> = QuizQuestionBase<T, dont_allow_duplicates_in_choices_answer<{
 	read incorrect: IC,
 	read correct: CC,
-}>, merge_iccc<IC, CC>, nil, nil, nil, nil, B>
+}>, merge_iccc<IC, CC>, nil, nil, nil, nil, R, B>
 
 type ChoicesQuestion<T, C> = QuestionBase<T, nil, C, nil, nil, nil, nil>
 
@@ -233,22 +260,38 @@ type ChoicesQuestion<T, C> = QuestionBase<T, nil, C, nil, nil, nil, nil>
 
 export type MultipleChoiceQuestion<C = { string }> = ChoicesQuestion<"MultipleChoice", C>
 
-export type MultipleChoiceQuizQuestion<IC = StringOrStrings, CC = StringOrStrings, B = Bonus> = ChoicesQuizQuestion<"MultipleChoice", IC, CC, B>
+export type MultipleChoiceQuizQuestion<
+	R = false?, IC = StringOrStrings, CC = StringOrStrings, B = Bonus
+> = ChoicesQuizQuestion<"MultipleChoice", IC, CC, R, B>
+
+export type MultipleChoiceQuizQuestions = MultipleChoiceQuizQuestion<true> | MultipleChoiceQuizQuestion<false>
 
 export type CheckboxesQuestion<C = { string }> = ChoicesQuestion<"Checkboxes", C>
 
-export type CheckboxesQuizQuestion<IC = string, CC = string, B = Bonus> = ChoicesQuizQuestion<"Checkboxes", IC, CC, B>
+export type CheckboxesQuizQuestion<
+	R = false?, IC = string, CC = string, B = Bonus
+> = ChoicesQuizQuestion<"Checkboxes", IC, CC, R, B>
 
-export type TextQuizQuestion<A = string?, MINL = number?, MAXL = number?, B = Bonus> = QuizQuestionBase<"Text", A, nil, MINL, MAXL, nil, nil, B>
+export type CheckboxesQuizQuestions = CheckboxesQuizQuestion<true> | CheckboxesQuizQuestion<false>
+
+export type TextQuizQuestion<
+	R = false?, A = string?, MINL = number?, MAXL = number?, B = Bonus
+> = QuizQuestionBase<"Text", A, nil, MINL, MAXL, nil, nil, R, B>
+
+export type TextQuizQuestions = TextQuizQuestion<true> | TextQuizQuestion<false>
 
 export type TextQuestion<MINL = number?, MAXL = number?> = QuestionBase<"Text", nil, nil, MINL, MAXL, nil, nil>
 
-export type ScaleQuizQuestion<AF = number, AT = number, A = number, F = number, T = number, B = Bonus> = QuizQuestionBase<"Scale", range<{
+export type ScaleQuizQuestion<
+	R = false?, AF = number, AT = number, A = number, F = number, T = number, B = Bonus
+> = range<QuizQuestionBase<"Scale", range<{
 	read from: F,
 	read to: T,
-}> | A, nil, nil, nil, F, T, B>
+}> | A, nil, nil, nil, F, T, R, B>>
 
-export type ScaleQuestion<F = number, T = number> = QuestionBase<"Scale", nil, nil, nil, nil, F, T>
+export type ScaleQuizQuestions = ScaleQuizQuestion<true> | ScaleQuizQuestion<false>
+
+export type ScaleQuestion<F = number, T = number> = range<QuestionBase<"Scale", nil, nil, nil, nil, F, T>>
 
 export type TimeInfo<S = number, M = number, H = number> = {
 	hour: H,
@@ -268,40 +311,52 @@ export type DateTimeInfo<
 	D = number, MONTH = number, Y = number
 > = DateInfo<D, MONTH, Y> & TimeInfo<S, MIN, H>
 
-export type DateTimeQuizQuestion<F = DateTimeInfo?, T = DateTimeInfo?, A = {
+export type DateTimeQuizQuestion<R = false?, F = DateTimeInfo?, T = DateTimeInfo?, A = {
 	from: DateTimeInfo,
 	to: DateTimeInfo,
-}?, B = Bonus> = QuizQuestionBase<"DateTime", A, nil, nil, nil, F, T, B>
+}?, B = Bonus> = QuizQuestionBase<"DateTime", A, nil, nil, nil, F, T, R, B>
+
+export type DateTimeQuizQuestions = DateTimeQuizQuestion<true> | DateTimeQuizQuestion<false>
 
 export type DateTimeQuestion<F = DateTimeInfo?, T = DateTimeInfo?> = QuestionBase<"DateTime", nil, nil, nil, nil, F, T>
 
-export type DateQuizQuestion<F = DateInfo?, T = DateInfo?, A = {
+export type DateQuizQuestion<R = false?, F = DateInfo?, T = DateInfo?, A = {
 	from: DateInfo,
 	to: DateInfo,
-}?, B = Bonus> = QuizQuestionBase<"Date", A, nil, nil, nil, F, T, B>
+}?, B = Bonus> = QuizQuestionBase<"Date", A, nil, nil, nil, F, T, R, B>
+
+export type DateQuizQuestions = DateQuizQuestion<true> | DateQuizQuestion<false>
 
 export type DateQuestion<F = DateInfo?, T = DateInfo?> = QuestionBase<"Date", nil, nil, nil, nil, F, T>
 
-export type TimeQuizQuestion<F = TimeInfo?, T = TimeInfo?, A = {
+export type TimeQuizQuestion<R = false?, F = TimeInfo?, T = TimeInfo?, A = {
 	from: TimeInfo,
 	to: TimeInfo,
-}?, B = Bonus> = QuizQuestionBase<"Time", A, nil, nil, nil, F, T, B>
+}?, B = Bonus> = QuizQuestionBase<"Time", A, nil, nil, nil, F, T, R, B>
+
+export type TimeQuizQuestions = TimeQuizQuestion<true> | TimeQuizQuestion<false>
 
 export type TimeQuestion<F = TimeInfo?, T = TimeInfo?> = QuestionBase<"Time", nil, nil, nil, nil, F, T>
 
 -- Question Unions
 
 export type QuizQuestion = 
-	| MultipleChoiceQuizQuestion 
-	| CheckboxesQuizQuestion 
-	| TextQuizQuestion 
-	| ScaleQuizQuestion
+	| MultipleChoiceQuizQuestions 
+	| CheckboxesQuizQuestions
+	| DateTimeQuizQuestions 
+	| ScaleQuizQuestions
+	| DateQuizQuestions 
+	| TextQuizQuestions
+	| TimeQuizQuestions 
 
 export type Question =
 	| MultipleChoiceQuestion
 	| CheckboxesQuestion
-	| TextQuestion
+	| DateTimeQuestion
 	| ScaleQuestion
+	| DateQuestion
+	| TextQuestion
+	| TimeQuestion
 
 export type MixedQuestion = 
 	| QuizQuestion
