@@ -185,7 +185,12 @@ type function merge_iccc(ic: type, cc: type)
 			table.insert(has_added, value)
 		end
 
-		new_array:setindexer(index, result)
+		if #has_added ~= 0 then
+			new_array:setindexer(types.number, types.unionof(table.unpack(has_added)))
+		else
+			new_array:setindexer(types.number, types.string)
+		end
+
 		return new_array
 	elseif is_ic_table then
 		return merge_table_and_string_singleton(ic, cc)
@@ -476,29 +481,31 @@ type ChoiceQuestionProducerPrototype<Q> = {
 }
 
 type ChoiceQuestionProducer<Q> = setmetatable<{
-	question: Q,
+	read question: Q,
 }, ChoiceQuestionProducerPrototype<Q>>
 
 type ChoiceQuizQuestionProducerPrototype<Q> = {
-	find: (choice_producer: ChoiceQuestionProducer<Q>, choice: string) -> ("incorrect" | "correct")?,
-	add_incorrect: (choice_producer: ChoiceQuestionProducer<Q>, choice: string) -> (),
-	add_correct: (choice_producer: ChoiceQuestionProducer<Q>, choice: string) -> (),
-	remove: (choice_producer: ChoiceQuestionProducer<Q>, choice: string) -> (),
+	find: (choice_producer: ChoiceQuizQuestionProducer<Q>, choice: string) -> ("incorrect" | "correct")?,
+	add_incorrect: (choice_producer: ChoiceQuizQuestionProducer<Q>, choice: string) -> (),
+	add_correct: (choice_producer: ChoiceQuizQuestionProducer<Q>, choice: string) -> (),
+	remove: (choice_producer: ChoiceQuizQuestionProducer<Q>, choice: string) -> (),
 	finish: (choice_producer: ChoiceQuizQuestionProducer<Q>) -> Q,
 	__index: ChoiceQuizQuestionProducerPrototype<Q>,
 }
 
 type ChoiceQuizQuestionProducer<Q> = setmetatable<{
-	--TODO: do some stuff for bonus with some basequestioninfo struct idk
-	-- bonus: Bonus,
-	question: Q,
+	read question: Q,
 }, ChoiceQuizQuestionProducerPrototype<Q>>
 
-type MultipleChoiceQuizQuestionProducer = ChoiceQuizQuestionProducer<MultipleChoiceQuizQuestion>
+type MultipleChoiceQuizQuestionProducer<R = false?, B = Bonus> = ChoiceQuizQuestionProducer<
+	MultipleChoiceQuizQuestion<R, { string }, { string }, B>
+>
 
 type MultipleChoiceQuestionProducer = ChoiceQuestionProducer<MultipleChoiceQuestion>
 
-type CheckboxesQuizQuestionProducer = ChoiceQuizQuestionProducer<CheckboxesQuizQuestion>
+type CheckboxesQuizQuestionProducer<R = false?, B = Bonus> = ChoiceQuizQuestionProducer<
+	CheckboxesQuizQuestion<R, { string }, { string }, B>
+>
 
 type CheckboxesQuestionProducer = ChoiceQuizQuestionProducer<CheckboxesQuestion>
 
@@ -535,12 +542,15 @@ export type FormBufferInfo =
 type FormPrototype<N, IQ, QL = {}, FRI = nil> = {
 	grade: ((form: Form<N, IQ, QL, FRI>, responce: FormResponce<FRI>) -> (boolean, number, { [QuestionResponce]: boolean })) &
 		((form: Form<N, IQ, QL, FRI>, responce: buffer) -> (boolean, number, { [QuestionId]: boolean })),
-	to_buffer: (form: Form<N, IQ, QL, FRI>, buffer_info: FormBufferInfo) -> buffer,
 	--TODO: constrain QN to keyof<QL>
 	get_question: (<QN>(form: Form<N, IQ, QL, FRI>, name: QN) -> index<QL, QN> & RegisteredQuestionInfo) &
 		--TODO: replace the any return with a type function when interger literals are added
 		(<QI>(form: Form<N, IQ, QL, FRI>, id: QI) -> any),
 	get_serializer:(form: Form<N, IQ, QL, FRI>) -> FormSerializer<Form<N, IQ, QL, FRI>>,
+	--[[
+		Creates a buffer form of this form, making replication easier, with `bufer_info` describing how you want the form encoded.
+	]]
+	to_buffer: (form: Form<N, IQ, QL, FRI>, buffer_info: FormBufferInfo?) -> buffer,
 	--[[
 		Creates a FormProducer for editing this form, useful for making UIs to edit forms. 
 	]]
@@ -561,7 +571,7 @@ type Export = {
 	--[[
 		Creates a FormProducer for creating a form using a config, useful for making UIs to create forms. 
 	]]
-	build: <FRI, APC, QL, IQ, N>(config: FormConfig<APC, IQ, N>) -> FormProducer<N, IQ, FRI>,
+	build: <APC, IQ, N>(config: FormConfig<APC, IQ, N>) -> FormProducer<N, IQ>,
 	--[[
 		Registers a form so it can be used for grading
 	]]
@@ -688,30 +698,9 @@ local function FREEZE_IF_NOT_FROZEN<T>(t: T & {}): T
 	return t
 end
 
--- using the prototype types no workey :(
-local form_serializer = {} :: getmetatable<FormSerializer<{}>>
+local choices_question_quiz_producer = {} :: getmetatable<ChoiceQuizQuestionProducer>
 
-function form_serializer.record_question(serializer, question, answer)
-	local offset = serializer.offset
-
-end
-
-function form_serializer.write_info(serializer, info)
-	local size = buffer.len(info)
-	local b = serializer.buffer
-
-	if size > 256 then
-		error("[FORM]: info buffer len cannot be greater than 256", 2)
-	end
-	
-	serializer.info_size = size
-	buffer.writeu8(b, 0, size)
-	buffer.copy(b, 1, info)
-end
-
-function form_serializer.trim(serializer)
-
-end
+local choices_question_producer = {} :: getmetatable<ChoiceQuestionProducer>
 
 local form_producer = {} :: getmetatable<FormProducer>
 
@@ -728,12 +717,35 @@ function form_producer.finish(producer)
 	return producer
 end
 
-local form = {} :: Export
+-- using the prototype types no workey :(
+local form_serializer = {} :: getmetatable<FormSerializer<{}>>
 
 @native
-function form.get_info_from_repsonce_buffer(responce_buffer)
-	
+function form_serializer.record_question(serializer, question, answer)
+	local offset = serializer.offset
+
 end
+
+@native
+function form_serializer.write_info(serializer, info)
+	local size = buffer.len(info)
+	local b = serializer.buffer
+
+	if size > 256 then
+		error("[FORM]: info buffer len cannot be greater than 256", 2)
+	end
+	
+	serializer.info_size = size
+	buffer.writeu8(b, 0, size)
+	buffer.copy(b, 1, info)
+end
+
+@native
+function form_serializer.trim(serializer)
+
+end
+
+local form = {} :: FormPrototype
 
 function form.get_question(form, name_or_id)
 	if type(name_or_id) == "number" then
@@ -751,107 +763,6 @@ function form.get_question(form, name_or_id)
 	end
 
 	return nil :: any
-end
-
-local function register_info(info: FormInfo): Form
-	local default_bonus_points = info.default_bonus_points or DEFAULT_BONUS_POINTS
-	-- this array is too complex to type here so its just becoming any
-	local questions_array = {} :: { any }
-	local can_fully_autograde = true
-	local required_points = 0
-	local next_id = 0
-
-	for name, question: MixedQuestion in info.questions do
-		local answer = question.answer
-		local question_type = question.type
-
-		if question_type == "Scale" then
-			if type(answer) == "table" then
-				local from = answer.from
-				local to = answer.to
-
-				if to and not from then
-					error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "from"))
-				elseif from and not to then
-					error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "to"))
-				end
-
-				FREEZE_IF_NOT_FROZEN(answer)
-			else
-				question.answer = table.freeze({
-					from = answer,
-					to = answer,
-				})
-			end
-		elseif type(answer) == "table" then
-			local incorrect = answer.incorrect
-			local correct = answer.correct
-	
-			if incorrect and not correct then
-				error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "correct"))
-			elseif correct and not incorrect then
-				error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "incorrect"))
-			end
-			--TODO: need to reflect the answers_ids array in the type
-			local answer_ids = table.move(
-				incorrect, 1, #incorrect, #correct + 1, 
-				table.clone(correct)
-			)
-
-			--[[
-				TODO: need to reflect that after registering the choices field isnt nil anymore
-				(waiting for type:issubtypeof() to be added so writing the type function for the form object isnt a pain)
-			]]
-			question.choices = table.clone(answer_ids)
-			question.answer_ids = answer_ids
-			FREEZE_IF_NOT_FROZEN(incorrect)
-			FREEZE_IF_NOT_FROZEN(correct)
-			FREEZE_IF_NOT_FROZEN(answer)
-		elseif question.choices then
-			question.answer_ids = table.clone(question.choices)
-		end
-
-		if question.bonus == true then
-			question.bonus = default_bonus_points
-		elseif not question.bonus then
-			question.bonus = 0
-		elseif question.required then
-			required_points += POINTS_PER_QUESTION
-		end
-
-		if question.type == "Text" then
-			can_fully_autograde = false
-		end
-
-		table.insert(questions_array, question)
-		question.id = next_id
-		question.name = name
-		table.freeze(question)
-		next_id += 1
-	end
-
-	if info.award_partially_correct == nil then
-		info.award_partially_correct = true
-	end
-
-	info.min_points = (required_points * (info.percent_to_pass or 70)) // 100
-	info.can_fully_autograde = can_fully_autograde
-	info.questions = questions_array
-	return table.freeze(info)
-end
-
-@native
-local function register_buffer(b: buffer): Form
-	
-end
-
---TODO: add overload for registering from a buffer
-function form.register(info_or_buffer)
-	if type(info_or_buffer) == "buffer" then
-		return register_buffer(info_or_buffer)
-	else
-		return register_info(info_or_buffer)
-	end
 end
 
 --[[
@@ -1055,12 +966,6 @@ function form.grade(form, responce)
 	end
 end
 
-function form.build(config)
-	return table.freeze(setmetatable({
-		form = VALIDATE_FORM_CONFIG(config)
-	}, form_producer))
-end
-
 function form.edit(form)
 	local questions = table.clone(form.questions)
 	local clone = table.clone(form)
@@ -1093,13 +998,133 @@ function form.edit(form)
 	}, form_producer))
 end
 
+local export = {} :: Export
+
+@native
+function export.get_info_from_repsonce_buffer(responce_buffer)
+	
+end
+
+local function register_info(info: FormInfo): Form
+	local default_bonus_points = info.default_bonus_points or DEFAULT_BONUS_POINTS
+	-- this array is too complex to type here so its just becoming any
+	local questions_array = {} :: { any }
+	local can_fully_autograde = true
+	local required_points = 0
+	local next_id = 0
+
+	for name, question: MixedQuestion in info.questions do
+		local answer = question.answer
+		local question_type = question.type
+
+		if question_type == "Scale" then
+			if type(answer) == "table" then
+				local from = answer.from
+				local to = answer.to
+
+				if to and not from then
+					error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "from"))
+				elseif from and not to then
+					error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "to"))
+				end
+
+				FREEZE_IF_NOT_FROZEN(answer)
+			else
+				question.answer = table.freeze({
+					from = answer,
+					to = answer,
+				})
+			end
+		elseif type(answer) == "table" then
+			local incorrect = answer.incorrect
+			local correct = answer.correct
+	
+			if incorrect and not correct then
+				error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "correct"))
+			elseif correct and not incorrect then
+				error(FORMAT(ERR_QQUESTION_FIELD_UNDEFINED, name, question_type, "incorrect"))
+			end
+			--TODO: need to reflect the answers_ids array in the type
+			local answer_ids = table.move(
+				incorrect, 1, #incorrect, #correct + 1, 
+				table.clone(correct)
+			)
+
+			--[[
+				TODO: need to reflect that after registering the choices field isnt nil anymore
+				(waiting for type:issubtypeof() to be added so writing the type function for the form object isnt a pain)
+			]]
+			question.choices = table.clone(answer_ids)
+			question.answer_ids = answer_ids
+			FREEZE_IF_NOT_FROZEN(incorrect)
+			FREEZE_IF_NOT_FROZEN(correct)
+			FREEZE_IF_NOT_FROZEN(answer)
+		elseif question.choices then
+			question.answer_ids = table.clone(question.choices)
+		end
+
+		if question.bonus == true then
+			question.bonus = default_bonus_points
+		elseif not question.bonus then
+			question.bonus = 0
+		elseif question.required then
+			required_points += POINTS_PER_QUESTION
+		end
+
+		if question.type == "Text" then
+			can_fully_autograde = false
+		end
+
+		table.insert(questions_array, question)
+		question.id = next_id
+		question.name = name
+		table.freeze(question)
+		next_id += 1
+	end
+
+	if info.award_partially_correct == nil then
+		info.award_partially_correct = true
+	end
+
+	info.min_points = (required_points * (info.percent_to_pass or 70)) // 100
+	info.can_fully_autograde = can_fully_autograde
+	info.questions = questions_array
+	return table.freeze(info)
+end
+
+@native
+local function register_buffer(b: buffer): Form
+	
+end
+
+--TODO: add overload for registering from a buffer
+function export.register(info_or_buffer)
+	if type(info_or_buffer) == "buffer" then
+		return register_buffer(info_or_buffer)
+	else
+		return register_info(info_or_buffer)
+	end
+end
+
+function export.build(config)
+	return table.freeze(setmetatable({
+		form = VALIDATE_FORM_CONFIG(config)
+	}, form_producer))
+end
+
 do
 
+	choices_question_quiz_producer.__index = choices_question_quiz_producer
+	choices_question_producer.__index = choices_question_producer
 	form_serializer.__index = form_serializer
 	form_producer.__index = form_producer
+	form.__index = form
+	table.freeze(choices_question_quiz_producer)
+	table.freeze(choices_question_producer)
 	table.freeze(form_serializer)
 	table.freeze(form_producer)
+	table.freeze(form)
 
 end
 
-return table.freeze(form)
+return table.freeze(export)
