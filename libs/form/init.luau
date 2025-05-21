@@ -97,8 +97,6 @@ type QuizQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B = Bonus> =
 
 type QuestionBase<TYPE, A, C, MAXL, MINL, F, T> = BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, nil, false?>
 
-type AnswersOnlyQuizQuestionBase<TYPE, A> = QuizQuestionBase<TYPE, A, nil, nil, nil, nil, nil>
-
 type function merge_table_and_string_singleton(t, s)
 	local indexer_result = (t :: type):indexer().readresult
 	local is_indexer_result_not_string = indexer_result.tag ~= "string"
@@ -239,19 +237,16 @@ export type MultipleChoiceQuizQuestion<IC = StringOrStrings, CC = StringOrString
 
 export type CheckboxesQuestion<C = { string }> = ChoicesQuestion<"Checkboxes", C>
 
-export type CheckboxesQuizQuestion<IC = string, CC = string> = QuizQuestionBase<"Checkboxes", {
-	incorrect: { IC },
-	correct: { CC },
-}, { IC & CC }, nil, nil, nil, nil>
+export type CheckboxesQuizQuestion<IC = string, CC = string, B = Bonus> = ChoicesQuizQuestion<"Checkboxes", IC, CC, B>
 
-export type TextQuizQuestion<B, A = string?, MINL = number?, MAXL = number?> = QuizQuestionBase<"Text", A, nil, MINL, MAXL, nil, nil>
+export type TextQuizQuestion<A = string?, MINL = number?, MAXL = number?, B = Bonus> = QuizQuestionBase<"Text", A, nil, MINL, MAXL, nil, nil, B>
 
 export type TextQuestion<MINL = number?, MAXL = number?> = QuestionBase<"Text", nil, nil, MINL, MAXL, nil, nil>
 
-export type ScaleQuizQuestion<AF = number, AT = number, A = number, F = number, T = number> = QuizQuestionBase<"Scale", range<{
+export type ScaleQuizQuestion<AF = number, AT = number, A = number, F = number, T = number, B = Bonus> = QuizQuestionBase<"Scale", range<{
 	read from: F,
 	read to: T,
-}> | A, nil, nil, nil, F, T>
+}> | A, nil, nil, nil, F, T, B>
 
 export type ScaleQuestion<F = number, T = number> = QuestionBase<"Scale", nil, nil, nil, nil, F, T>
 
@@ -365,13 +360,6 @@ type RegisteredQuestionInfo = {
 	read name: string,
 }
 
--- TODO: make into type function so is_quiz can be properly inferred 
-type Form<N = string, QL = {}, FRI = nil> = BaseFormInfo<boolean, boolean, { MixedQuestion & RegisteredQuestionInfo }, N> & {
-	read max_responce_buffer_size: number,
-	read can_fully_autograde: boolean,
-	read min_points: number,
-} 
-
 --[[
 	choice buffer spec:
 	1 byte id
@@ -424,37 +412,57 @@ type FormSerializer<F> = setmetatable<{
 	read form: F,
 }, FormSerializerPrototype<F>>
 
-type ProducerFinish<P, R> = {
-	finish: (producer: P) -> R,
+
+type ChoiceQuestionProducerPrototype<Q> = {
+	remove: (choice_producer: ChoiceQuestionProducer<Q>, choice: string) -> (),
+	add: (choice_producer: ChoiceQuestionProducer<Q>, choice: string) -> (),
+	finish: (choice_producer: ChoiceQuestionProducer<Q>) -> Q,
+	__index: ChoiceQuestionProducerPrototype<Q>,
 }
 
-type QuestionProducerFinish<P> = ProducerFinish<P, index<P, "question">>
+type ChoiceQuestionProducer<Q> = setmetatable<{
+	question: Q,
+}, ChoiceQuestionProducerPrototype<Q>>
 
-type MultipleChoiceProducerPrototype<N, C> = QuestionProducerFinish<MultipleChoiceQuestionProducer<N, C>> {
-
-	__index: MultipleChoiceProducerPrototype
+type ChoiceQuizQuestionProducerPrototype<Q> = {
+	find: (choice_producer: ChoiceQuestionProducer<Q>, choice: string) -> ("incorrect" | "correct")?,
+	add_incorrect: (choice_producer: ChoiceQuestionProducer<Q>, choice: string) -> (),
+	add_correct: (choice_producer: ChoiceQuestionProducer<Q>, choice: string) -> (),
+	remove: (choice_producer: ChoiceQuestionProducer<Q>, choice: string) -> (),
+	finish: (choice_producer: ChoiceQuizQuestionProducer<Q>) -> Q,
+	__index: ChoiceQuizQuestionProducerPrototype<Q>,
 }
 
-type MultipleChoiceQuestionProducer<N, C> = setmetatable<{
-	question: 
-	choices: C,
-	name: N,
-}, MultipleChoiceProducerPrototype<N, C>>
+type ChoiceQuizQuestionProducer<Q> = setmetatable<{
+	--TODO: do some stuff for bonus with some basequestioninfo struct idk
+	-- bonus: Bonus,
+	question: Q,
+}, ChoiceQuizQuestionProducerPrototype<Q>>
+
+type MultipleChoiceQuizQuestionProducer = ChoiceQuizQuestionProducer<MultipleChoiceQuizQuestion>
+
+type MultipleChoiceQuestionProducer = ChoiceQuestionProducer<MultipleChoiceQuestion>
+
+type CheckboxesQuizQuestionProducer = ChoiceQuizQuestionProducer<CheckboxesQuizQuestion>
+
+type CheckboxesQuestionProducer = ChoiceQuizQuestionProducer<CheckboxesQuestion>
 
 --[[
 	TODO: use a type function for the add/remove question returns,
 		and remove add/remove returning any (this is currently because of recusrive type restrictions!! grr)
 ]]
-type FormProducerPrototype<N, QL, IQ, FRI> = ProducerPrototype<T>  {
-	add_question: <QN, Q>(editor: FormProducer<N, QL, IQ, FRI>, name: QN, info: Q) -> any,
-	remove_question: <QN>(editor: FormProducer<N, QL, IQ, FRI>, name: QN) -> any,
-	finish: (editor: FormProducer<N, QL, IQ, FRI>) -> Form<N, QL, FRI>,
-	__index: FormProducerPrototype<N, QL, IQ, FRI>,
+type FormProducerPrototype<N, IQ, FRI> = {
+	add_question: <QI>(editor: FormProducer<N, IQ, FRI>, name: string, info: QI) -> any,
+	remove_question: (editor: FormProducer<N, IQ, FRI>, name: string) -> any,
+	--TODO: replace brackets w type function based on IQ (is_quiz)
+	--finish: (editor: FormProducer<N, IQ, FRI>) -> Form<N, IQ, {}, FRI>,
+	__index: FormProducerPrototype<N, IQ, FRI>,
 }
 
-type FormProducer<N = string, QL = {}, IQ = false?, FRI = nil> = setmetatable<{
-	read form: Form<N, QL>
-}, FormProducerPrototype<N, QL, IQ, FRI>>
+type FormProducer<N = string, IQ = false?, FRI = nil> = setmetatable<{
+	--TODO: replace brackets w type function based on IQ (is_quiz)
+	read form: BaseForm<N, IQ, {}>,
+}, FormProducerPrototype<N, IQ, FRI>>
 
 type BaseFormBufferInfo<SQC, SQ, IQ, IA, II> = {
 	shuffle_question_choices: SQC, -- default false
@@ -469,31 +477,45 @@ export type FormBufferInfo =
 	| BaseFormBufferInfo<BoolOrRandom?, BoolOrRandom?, true?, boolean?, boolean?> 
 	| BaseFormBufferInfo<false?, false?, false, false?, true> 
 
-type Export = {
-	grade: (<N, QL, FRI>(form: Form<N, QL, FRI>, responce: FormResponce<FRI>) -> (boolean, number, { [QuestionResponce]: boolean })) &
-		(<N, QL, FRI>(form: Form<N, QL, FRI>, responce: buffer) -> (boolean, number, { [QuestionId]: boolean })),
-	get_question: (<N, QL, FRI, QN>(form: Form<N, QL, FRI>, name: QN & keyof<QL>) -> index<QL, QN> & RegisteredQuestionInfo) &
+type FormPrototype<N, IQ, QL = {}, FRI = nil> = {
+	grade: ((form: Form<N, IQ, QL, FRI>, responce: FormResponce<FRI>) -> (boolean, number, { [QuestionResponce]: boolean })) &
+		((form: Form<N, IQ, QL, FRI>, responce: buffer) -> (boolean, number, { [QuestionId]: boolean })),
+	to_buffer: (form: Form<N, IQ, QL, FRI>, buffer_info: FormBufferInfo) -> buffer,
+	--TODO: constrain QN to keyof<QL>
+	get_question: (<QN>(form: Form<N, IQ, QL, FRI>, name: QN) -> index<QL, QN> & RegisteredQuestionInfo) &
 		--TODO: replace the any return with a type function when interger literals are added
-		(<N, QL, FRI, QI>(form: Form<N, QL, FRI>, id: QI) -> any),
+		(<QI>(form: Form<N, IQ, QL, FRI>, id: QI) -> any),
+	get_serializer:(form: Form<N, IQ, QL, FRI>) -> FormSerializer<Form<N, IQ, QL, FRI>>,
+	--[[
+		Creates a FormProducer for editing this form, useful for making UIs to edit forms. 
+	]]
+	edit: (form: Form<N, IQ, QL, FRI>) -> FormProducer<N, IQ, FRI>,
+	__index: FormPrototype<N, IQ, QL, FRI>,
+}
+
+type BaseForm<N, IQ, QL> = BaseFormInfo<boolean, IQ, { MixedQuestion & RegisteredQuestionInfo }, N> & {
+	read max_responce_buffer_size: number,
+	read can_fully_autograde: boolean,
+	read min_points: number,
+}
+
+-- TODO: make into type function so is_quiz can be properly inferred 
+type Form<N = string, IQ = boolean, QL = {}, FRI = nil> = setmetatable<BaseForm<N, IQ, QL>, FormPrototype<N, QL, FRI>>
+
+type Export = {
 	--[[
 		Creates a FormProducer for creating a form using a config, useful for making UIs to create forms. 
 	]]
-	build: <FRI, APC, QL, IQ, N>(config: FormConfig<APC, IQ, N>) -> FormProducer<N, QL, IQ, FRI>,
-	to_buffer: <N, QL, FRI>(form: Form<N, QL, FRI>, buffer_info: FormBufferInfo) -> buffer,
-	serializer: <N, QL, FRI>(form: Form<N, QL, FRI>) -> FormSerializer<Form<N, QL, FRI>>,
+	build: <FRI, APC, QL, IQ, N>(config: FormConfig<APC, IQ, N>) -> FormProducer<N, IQ, FRI>,
 	--[[
-		Creates a FormProducer for editing a form, useful for making UIs to create forms. 
+		Registers a form so it can be used for grading
 	]]
-	edit: <N, QL, FRI, F>(form: F) -> FormProducer<N, QL, index<F, "is_quiz">, FRI>,
+	register: (<N, IQ, QL, FRI>(info: FormInfo<N, QL>) -> Form<N, IQ, QL, FRI>) &
+		((form_buffer: buffer) -> Form),
 	--[[
 		Returns a buffer with the info included in a responce buffer if any.
 	]]
 	get_info_from_repsonce_buffer: (responce_buffer: buffer) -> buffer?,
-	--[[
-		Registers a form so it can be used for grading
-	]]
-	register: (<N, QL, FRI>(info: FormInfo<N, QL>) -> Form<N, QL, FRI>) &
-		((form_buffer: buffer) -> Form),
 }
 
 -- qquestion is quizquestion its just quiz makes the variable too long
