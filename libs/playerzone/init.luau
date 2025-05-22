@@ -5,7 +5,7 @@
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
-local character = require("../character")
+local character = require("@libs/character")
 
 export type ZoneType = "WHITELIST" | "BLACKLIST"
 

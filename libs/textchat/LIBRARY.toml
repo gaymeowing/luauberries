@@ -1,4 +1,4 @@
-tags = ["TextChatService"]
+tags = [ "TextChatService" ]
 version = "2.1.0"
 
 [runtime]

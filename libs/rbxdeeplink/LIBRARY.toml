@@ -1,8 +1,4 @@
-tags = [
-    "deeplinking",
-    "format",
-    "url",
-]
+tags = [ "deeplinking", "format", "url" ]
 version = "1.0.1"
 
 [runtime]

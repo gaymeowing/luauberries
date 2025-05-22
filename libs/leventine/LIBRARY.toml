@@ -1,8 +1,4 @@
-tags = [
-    "levenstein distance",
-    "search",
-    "fast",
-]
+tags = [ "levenstein distance", "search", "fast" ]
 version = "1.4.0"
 
 [runtime]

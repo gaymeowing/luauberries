@@ -5,7 +5,7 @@
 -- based on redbloxs Ratelimit util but made into a class
 -- as i despise creating new closures (it makes me feel bad inside)
 
-local cross = require("../cross/init")
+local cross = require("@libs/cross/init")
 
 type RatelimitPrototype<K> = {
 	__call: (ratelimit: Ratelimit<K>, key: K?) -> boolean

@@ -1,1 +1,3 @@
-# [Documentation](https://libs.luau.lol/connector)
+> [!CAUTION]
+> This library is depricated and is no longer reccomended for use.
+> [Releases](https://github.com/gaymeowing/luauberries/releases?q=connector&expanded=true)

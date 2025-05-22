@@ -1,7 +1,4 @@
-tags = [
-    "table",
-    "empty",
-]
+tags = [ "table", "empty" ]
 version = "1.1.0"
 
 [runtime]

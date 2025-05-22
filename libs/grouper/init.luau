@@ -12,7 +12,7 @@
 local GroupService = game:GetService("GroupService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
-local connector = require("../connector")
+local connector = require("@libs/connector")
 
 type FireRankChanged = (send_to_player: Player, player_whose_rank_changed: Player, rank: number, role: string) -> ()
 

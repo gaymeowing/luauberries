@@ -4,7 +4,7 @@
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
-local character = require("../character")
+local character = require("@libs/character")
 
 local PLAYER_ADDED = Players.PlayerAdded
 

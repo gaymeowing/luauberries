@@ -1,9 +1,4 @@
-tags = [
-    "GroupService",
-    "Roleplay",
-    "Roleplay Group",
-    "Cafe",
-]
+tags = [ "GroupService", "Roleplay",  "Roleplay Group",  "Cafe" ]
 version = "2.2.1"
 
 [runtime]

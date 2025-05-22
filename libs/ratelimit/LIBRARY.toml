@@ -1,7 +1,4 @@
-tags = [
-    "ratelimiting",
-    "mrrp",
-]
+tags = [ "ratelimiting" ]
 version = "2.2.0"
 
 [runtime]

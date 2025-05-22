@@ -1,8 +1,9 @@
---!optimize 2
 --!native
 
--- url
--- utility functions for encoding and decoding urls
+--[[
+	url
+	utility functions for encoding and decoding urls
+]]
 
 export type SpaceEncoding = "+" | "%20"
 
@@ -33,10 +34,13 @@ local function ENCODE(url: string, encode_spaces_as: SpaceEncoding?): string
 	return (GSUB(new_line_encoded, "%s+", space_encode_char))
 end
 
-local url = {}
+local url = {
+	encode = ENCODE,
+	decode = DECODE,
+}
 
 -- modified from: https://stackoverflow.com/questions/28916182/parse-parameters-out-of-url-in-lua
-function url.read_query<T>(url: string): { [string]: string }
+function url.read_query(url: string): { [string]: string }
 	local query_tbl = {}
 
 	for key, value: any in GMATCH(DECODE(url), "([^&=?]-)=([^&=?]+)") do
@@ -55,8 +59,5 @@ function url.queryify(t: { [string]: string }, encode_spaces_as: SpaceEncoding?)
 	end
 	return `?{table.concat(query_strings, "&")}`
 end
-
-url.encode = ENCODE
-url.decode = DECODE
 
 return table.freeze(url)

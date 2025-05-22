@@ -4,7 +4,7 @@
 -- and api improvements
 
 local TeleportService = game:GetService("TeleportService")
-local retryer = require("../retryer")
+local retryer = require("@libs/retryer")
 
 type BaseTeleportDataValue = string | buffer | Vector2 | vector | Vector3int16 | EnumItem | UDim | UDim2 | Rect | 
     NumberRange | Vector2int16 | Color3 | Axes | DateTime | Random | Font | Faces | Content | Vector3

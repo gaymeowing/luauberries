@@ -1,7 +1,4 @@
-tags = [
-    "TeleportService",
-    "typed",
-]
+tags = [ "TeleportService", "typed" ]
 version = "3.0.0"
 
 [runtime]

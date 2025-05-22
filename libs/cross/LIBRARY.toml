@@ -1,7 +1,4 @@
-tags = [
-    "cross runtime",
-    "runtime",
-]
+tags = [ "cross runtime", "runtime" ]
 version = "1.1.0"
 
 [runtime]

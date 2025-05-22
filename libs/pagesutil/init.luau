@@ -1,6 +1,8 @@
 
--- pagesutil
--- utility for dealing with roblox page instancs easily
+--[[
+	pagesutil
+	utility for dealing with roblox page instancs easily
+]]
 
 export type PageInfo = {
 	item_index: number,
@@ -8,8 +10,7 @@ export type PageInfo = {
 	page: number,
 }
 
-local ADVANCE_ERR_FORMAT = "[PAGES] an error occurred while trying to advance to the next page\
-\tadvance-next-page-err: %s"
+local ADVANCE_ERR_FORMAT = "[PAGES]: an error occurred while trying to advance to the next page\n\tadvance-next-page-err: %s"
 
 local pagesutil = {}
 

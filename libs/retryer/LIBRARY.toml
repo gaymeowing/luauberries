@@ -1,7 +1,4 @@
-tags = [
-    "retrying",
-    "http",
-]
+tags = [ "retrying", "http" ]
 version = "2.3.2"
 
 [runtime]

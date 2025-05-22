@@ -1,8 +1,4 @@
-tags = [
-    "zone",
-    "zone detection",
-    "player",
-]
+tags = [ "zone", "zone detection", "player" ]
 version = "2.0.0"
 
 [runtime]

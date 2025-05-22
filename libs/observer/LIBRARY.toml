@@ -1,11 +1,4 @@
-tags = [
-    "observers",
-    "tools",
-    "player",
-    "character",
-    "tag",
-    "CollectionService",
-]
+tags = [ "observers", "tools", "player", "character", "tag", "CollectionService" ]
 version = "1.0.0"
 
 [runtime]
