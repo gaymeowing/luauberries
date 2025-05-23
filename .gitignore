@@ -4,5 +4,6 @@ docs/.vitepress/cache
 sourcemap.json
 darklua_output
 docs/.vitepress/sidebar-libs.json
+docs/index.md
 libs_copy
 dist
