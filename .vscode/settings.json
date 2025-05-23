@@ -13,9 +13,6 @@
 		"**/node_modules/**",
 		"*.lua"
 	],
-	"luau-lsp.require.directoryAliases": {
-    	"@lune/": "~/.lune/.typedefs/0.8.7/"
-	},
 
 	// vscode
 	"explorer.sortOrderLexicographicOptions": "upper",
