@@ -3,8 +3,8 @@
 	"languageMode": "strict",
 	"aliases": {
 		"lune": "~/.lune/.typedefs/0.9.3/",
-		"scripts": "scripts",
-		"libs": "libs"
+		"scripts": "./scripts",
+		"libs": "./libs"
 	},
 	"lint": {
 		"MultiLineStatement": false,
