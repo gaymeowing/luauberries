@@ -1,7 +1,8 @@
 
--- libinfo
--- utility func for reading LIBRARY.toml files
--- and providing types for LIBINFOs
+--[[
+	libinfo
+	utility func for reading LIBRARY.toml files and providing types for LIBINFOs
+]]
 
 local serde = require("@lune/serde")
 local fs = require("@lune/fs")
@@ -21,10 +22,7 @@ type InternalLibInfo = BaseLibInfo<RuntimeInfo | string>
 
 type LibInfo = BaseLibInfo<RuntimeInfo?>
 
-local LIBINFO_PATH_FORMAT = "libs/%*/LIBRARY.toml"
 local CACHED_INFOS = {} :: { [string]: LibInfo }
-local FORMAT = string.format
-local FREEZE = table.freeze
 
 local function libinfo(lib: string): LibInfo
 	local cached = CACHED_INFOS[lib]
@@ -32,25 +30,25 @@ local function libinfo(lib: string): LibInfo
 	if cached then
 		return cached
 	else
-		local raw: InternalLibInfo = serde.decode("toml", fs.readFile(FORMAT(LIBINFO_PATH_FORMAT, lib)))
-		local runtime = raw.runtime
+		local raw = serde.decode("toml", fs.readFile(`libs/{lib}/LIBRARY.toml`)) :: InternalLibInfo
 
-		if runtime then
+		if raw.runtime then
+			local runtime = raw.runtime
+
 			if type(runtime) == "string" then
-				runtime = { main = runtime }
+				raw.runtime = { main = runtime }
 			else
-				local optional = runtime.optional
-
-				if optional then
-					FREEZE(optional)
+				if runtime.optional then
+					table.freeze(runtime.optional)
 				end
 			end
-			raw.runtime = FREEZE(runtime) 
+
+			table.freeze(raw.runtime) 
 		else
 			error(`no runtime specified for lib {lib}`)
 		end
 
-		CACHED_INFOS[lib] = FREEZE(raw) :: any
+		CACHED_INFOS[lib] = table.freeze(raw) :: any
 		return raw :: any
 	end
 end
