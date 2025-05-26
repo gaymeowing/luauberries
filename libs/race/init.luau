@@ -2,7 +2,7 @@
 -- race
 -- a function for getting the first return out of a vararg of functions
 
-local cross = require("@libs/cross/init")
+local cross = require("@libs/cross")
 
 local function callback_handler<A..., R...>(
 	f: (A...) -> R..., threads: { thread }, 
