@@ -1,14 +1,14 @@
---!native
 
--- dep graph
--- module for generating a dependency graph for all libraries
+--[[
+	dep graph
+	module for generating a dependency graph for all libraries
+]]
 
-local remove_from_end = require("./remove_from_end")
-local require_pattern = require("./require_pattern")
-local iter_scripts = require("./iter_scripts")
+local get_require_pattern = require("@scripts/get_require_pattern")
+local iter_scripts = require("@scripts/iter_scripts")
+local read_dir = require("@scripts/read_dir")
+local remove = require("@scripts/remove")
 local process = require("@lune/process")
-local remove = require("./remove")
-local fs = require("@lune/fs")
 
 export type DependencyInfo = {	
 	shallow: { string },
@@ -16,13 +16,12 @@ export type DependencyInfo = {
 	deep: { string },
 }
 
+local REQUIRE_PATTERN = get_require_pattern("@libs/(%w+).-")
 local GRAPH = {} :: { [string]: DependencyInfo }
 local FOUND = {} :: { [string]: boolean }
 local DEPQUEUE = {} :: { string }
-local GMATCH = string.gmatch
-local MATCH = string.match
 
-for _, lib in fs.readDir("libs") do
+for _, lib in read_dir("libs") do
 	GRAPH[lib] = {
 		has_deps = false,
 		shallow = {},
@@ -34,24 +33,20 @@ for lib, depinfo in GRAPH do
 	local shallow = depinfo.shallow
 
 	iter_scripts(`libs/{lib}`, function(_, src)
-		for require_path in GMATCH(src, require_pattern) do
-			local deplib =  MATCH(remove_from_end(require_path, "/init"), "([^/]+)$")
-			
-			if deplib and GRAPH[deplib] and not table.find(shallow, deplib) then
-				table.insert(shallow, deplib)
+		for dep_lib in string.gmatch(src, REQUIRE_PATTERN) do
+			if not table.find(shallow, dep_lib) then
+				table.insert(shallow, dep_lib)
 			end
 		end
-		return nil
 	end)
 end
 
 for lib, depinfo in GRAPH do
 	local shallow = depinfo.shallow
-	local shallow_len = #shallow
 	local deep = depinfo.deep
 
-	if shallow_len ~= 0 then
-		local queue_len = shallow_len
+	if #shallow ~= 0 then
+		local queue_len = #shallow
     	table.move(shallow, 1, queue_len, 1, DEPQUEUE)
 
    		while queue_len ~= 0 do
@@ -75,7 +70,7 @@ for lib, depinfo in GRAPH do
 		table.clear(FOUND)
 	end
 
-	if #deep == shallow_len then
+	if #deep == #shallow then
 		depinfo.deep = table.freeze(shallow)
 	else
 		table.freeze(shallow)
