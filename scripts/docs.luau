@@ -1,10 +1,12 @@
 
--- docs gen
--- generates sidebar, and homepage
+--[[
+	docs
+	generates sidebar, and homepage
+]]
 
-local remove_from_end = require("../remove_from_end")
-local process = require("@lune/process")
-local iter_dir = require("../iter_dir")
+local iter_dir = require("@scripts/iter_dir")
+local read_dir = require("@scripts/read_dir")
+local gsub = require("@scripts/gsub")
 local serde = require("@lune/serde")
 local fs = require("@lune/fs")
 
@@ -23,35 +25,37 @@ local DOCDESCS = {} :: { [string]: string }
 local FANCY_URL_PATTERN = "%[(.-)%]%(.-%)"
 local LIBDOCS = {} :: { LibdocInfo }
 local DESC_PATTERN = "\n\n(.-)\n\n"
-
-local FORMAT = string.format
 local UPPER = string.upper
 local MATCH = string.match
-local GSUB = string.gsub
+local FIND = string.find
 local SUB = string.sub
 
 local function NAME_FROM_FILE_NAME(file_name: string): string
-	local without_file_ext = remove_from_end(file_name, ".md")
-	local upper_first_char = GSUB(without_file_ext, "^%a", UPPER)
+	local rest_of_name = SUB(
+		file_name, 2, (FIND(file_name, ".", 1, true) :: any) - 1
+	)
 
-	return (GSUB(upper_first_char, "%-%a", function(dash_and_char)
-		return ` {UPPER(SUB(dash_and_char, 2, 2))}`
-	end))
+	return gsub(
+		UPPER(SUB(file_name, 1, 1)) .. rest_of_name, 
+		"%-%a", function(dash_and_char)
+			return " " .. UPPER(SUB(dash_and_char, 2, 2))
+		end
+	)
 end
 
 local function GET_SHORTENED_DESC(file: string): string
-	local desc = MATCH(GSUB(file, "\r", ""), DESC_PATTERN)
+	local desc = MATCH(gsub(file, "\r", ""), DESC_PATTERN)
 
 	if desc then
-		return GSUB(desc, FANCY_URL_PATTERN, function(url_name)
-			return GSUB(url_name, "`", "")
+		return gsub(desc, FANCY_URL_PATTERN, function(url_name)
+			return gsub(url_name, "`", "")
 		end)
 	else
 		return "n/a"
 	end
 end
 
-for _, lib_doc in fs.readDir("docs") do
+for _, lib_doc in read_dir("docs") do
 	if table.find(IGNORE, lib_doc) then
 		continue
 	end
@@ -66,9 +70,8 @@ for _, lib_doc in fs.readDir("docs") do
 		}))
 	else
 		local index_path = `{path}/index.md`
-		local index = fs.isFile(index_path)
 
-		if index then
+		if fs.isFile(index_path) then
 			local relative_index_path = `/{lib_doc}/index.md`
 			DOCDESCS[name] = GET_SHORTENED_DESC(fs.readFile(index_path))
 			local items = {} :: { LibdocInfo }
@@ -78,21 +81,18 @@ for _, lib_doc in fs.readDir("docs") do
 				text = name,
 			}
 
-			iter_dir(path, function(file_info)
-				local file_path = file_info.path
-				
+			iter_dir(path, function(name, file_path)				
 				if file_path ~= index_path then
 					table.insert(items, {
-						text = NAME_FROM_FILE_NAME(file_info.name),
-						link = MATCH(file_info.path, "docs(.+)") or "",
+						text = NAME_FROM_FILE_NAME(name),
+						link = MATCH(file_path, "docs(.+)") or "",
 					})
 				end
-				return
-			end)
+			end :: any)
 
 			table.insert(LIBDOCS, libdoc_info)
 		else
-			error("[DOCS GEN] cannot have docs sub dir without an index.md file")
+			error("cannot have docs dir without an index.md file")
 		end
 	end
 end
@@ -106,11 +106,10 @@ local features = table.create(#LIBDOCS)
 
 for index, libdoc in LIBDOCS do
 	local name = libdoc.text
-	features[index] = FORMAT(
+	features[index] = string.format(
 		FEATURE_FORMAT, name, DOCDESCS[name], libdoc.link
 	)
 end
 
 fs.writeFile("docs/.vitepress/sidebar-libs.json", serde.encode("json", LIBDOCS))
 fs.writeFile("docs/index.md", `{before_features}\n{table.concat(features)}---`)
-process.exit()

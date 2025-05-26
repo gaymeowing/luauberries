@@ -8,7 +8,7 @@ on:
       - "docs/**"
 
 concurrency:
-  group: DOCS-${{ github.workflow }}-${{ github.ref }}
+  group: Docs
   cancel-in-progress: true
 
 jobs:
@@ -32,7 +32,7 @@ jobs:
         run: rokit install --no-trust-check
 
       - name: Sort libraries
-        run: lune run scripts/docs/docs_gen
+        run: lune run scripts/docs
 
       - uses: actions/setup-node@v4
         with:
