@@ -1,89 +1,66 @@
 
--- iter dir
--- recursively iterates over luau file in a directory
--- and calls a callback that can then optionally change stuff abt the file
+--[[
+	iter dir
+	recursively iterates over a directory and 
+	calls a callback that can then optionally move or change the contents of the file
+]]
 
-local remove = require("./remove")
+local read_dir = require("@scripts/read_dir")
+local remove = require("@scripts/remove")
 local fs = require("@lune/fs")
 
-type BaseOptionalFileInfo = {
-	file: (string | buffer)?
+type BaseFileInfo<N, P, C = (string | buffer)?> = {
+	contents: C,
+	path: P,
+	name: N,
 }
 
-type OptionalPathAndNameInfo = {
-	path: nil,
-	name: string?,
-} | {
-	path: string?,
-	name: nil,
-}
+export type OptionalFileInfo = 
+	| BaseFileInfo<string, nil>
+	| BaseFileInfo<nil, string>
+	| BaseFileInfo<nil, nil>
 
-export type OptionalFileInfo = BaseOptionalFileInfo & OptionalPathAndNameInfo
+type IterDirCallback = ((name: string, path: string, contents: string) -> (OptionalFileInfo | "break" | "continue")?) |
+	((name: string, path: string, contents: string) -> ())
 
-export type FileInfo = {
-	path: string,
-	name: string,
-	file: string,
-}
+local DIRQUEUE = {}
 
-local DIRQUEUE = table.create(2)
-local PATH_FORMAT = "%*/%*"
-
-local REMOVE_FILE = fs.removeFile
-local WRITE_FILE = fs.writeFile
-local READ_FILE = fs.readFile
-local FORMAT = string.format
-local READ_DIR = fs.readDir
-local MATCH = string.match
-local IS_FILE = fs.isFile
-
-local function iter_dir(dir: string, f: (info: FileInfo) -> (OptionalFileInfo | "break" | "continue")?)
+local function iter_dir(dir: string, f: IterDirCallback)
 	local queue_len = 1
 	DIRQUEUE[1] = dir
 
 	while queue_len ~= 0 do
-        local current_dir = remove(DIRQUEUE, queue_len)
+        local dir = remove(DIRQUEUE, queue_len)
         queue_len -= 1
 
-        for _, entry in READ_DIR(current_dir) do
-            local entry_path = FORMAT(PATH_FORMAT, current_dir, entry)
-            
-			if IS_FILE(entry_path) then
-				local name = MATCH(entry, "[^%.]+") or ""
-				local file = READ_FILE(entry_path)
-				local info = table.freeze({
-					path = entry_path,
-					file = file,
-					name = name,				
-				})
-				local result = f(info)
+        for _, entry in read_dir(dir) do
+            local path = `{dir}/{entry}`
 
-				if not result then
-					continue
-				elseif result == "break" then
+			if fs.isFile(path) then
+				local contents = fs.readFile(path)
+				local result = f(
+					string.match(entry, "[^%.]+") or "", 
+					path, contents
+				)
+
+				if result == "break" then
 					return
 				elseif type(result) == "table" then
-					local new_path = entry_path
+					if result.contents then
+						contents = result.contents
+					end
 
 					if result.name then
-						REMOVE_FILE(entry_path)
-						new_path = FORMAT(PATH_FORMAT, result.name)
+						fs.removeFile(path)
+						fs.writeFile(`{dir}/{result.name}`, contents)
+					elseif result.path then
+						fs.removeFile(path)
+						fs.writeFile(result.path, contents)
 					end
-
-					if result.path then
-						REMOVE_FILE(entry_path)
-						new_path = result.path
-					end
-
-					if result.file then
-						file = result.file
-					end
-
-					WRITE_FILE(new_path, file)
 				end
 			else
 				queue_len += 1
-				DIRQUEUE[queue_len] = entry_path
+				DIRQUEUE[queue_len] = path
 			end
         end
     end
