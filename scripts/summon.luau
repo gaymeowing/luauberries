@@ -14,13 +14,17 @@ local OPTS = {
 	env = ENV
 }
 
-local function summon(program: string, env: { [string]: string }?): string
+local function summon(
+	program: string, env: { [string]: string }?, protected: boolean?
+): string?
 	local result = process.exec(
 		program, nil, (if env then { shell = SHELL, env = env } else OPTS) :: any
 	)
 
 	if result.ok then
 		return result.stdout
+	elseif protected then
+		return nil
 	else
 		error(result.stderr, 2)
 	end
@@ -34,4 +38,8 @@ do
 
 end
 
-return summon
+return summon :: ((program: string, env: { [string]: string }?, protected: true) -> string?) &
+	((program: string, env: { [string]: string }?, protected: false?) -> string) &
+	-- these exist because of the solver being pee pee poo poo in reguards to singleton inferrence for function args
+	((program: string, env: { [string]: string }?) -> string) &
+	((program: string) -> string)
