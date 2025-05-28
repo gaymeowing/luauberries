@@ -1,68 +1,58 @@
 
--- test runner
--- script for running tests for ci
+--[[
+	test runner
+	script for running tests for ci
+]]
 
-local libinfo = require("./release/libinfo")
-local diff_reader = require("./diff_reader")
+local libs_changed = require("@scripts/libs_changed")
+local read_dir = require("@scripts/read_dir")
+local depgraph = require("@scripts/depgraph")
+local libinfo = require("@scripts/libinfo")
 local process = require("@lune/process")
-local depgraph = require("./depgraph")
-local task = require("@lune/task")
 local fs = require("@lune/fs")
-local ansi = require("./ansi")
 
--- table
-local function CLONE<V>(t: { V }): { V }
-	local clone = {}
-
-	for key, value in t do
-		clone[key] = value
+local function GET_LIBS_TO_TEST(): { string }
+	if process.args[1] == "all" then
+		return read_dir("libs")
 	end
-	return clone
-end
+	local libs_to_test
 
-local function get_libs_to_test(): { string }
-	local args = CLONE(process.args)
-	local first_arg = args[1]
-	local is_release = first_arg == "release"
-	local args_len = #args
+	if #process.args ~= 0 then
+		libs_to_test = {}
 
-	if first_arg == "all" or not fs.isFile(".diff") then
-		return fs.readDir("libs")
-	elseif args_len > 1 or not is_release then
-		return args
-	elseif diff_reader.scripts() then
-		return fs.readDir("libs")
-	end
-	local libs, changed_set = diff_reader.libs()
+		for _, lib in process.args do
+			local lib_path = `libs/{lib}`
 
-	if is_release then
-		args[1] = args[args_len]
-		args[args_len] = nil
-		table.move(args, 1, args_len - 1, #libs + 1, libs)
-
-		for _, lib in args do
-			changed_set[lib] = true
+			if fs.isFile(`{lib_path}/test.luau`) or fs.isDir(`{lib_path}/test`)  then
+				table.insert(libs_to_test, lib)
+			else
+				error(`library {lib} doesn't exist or doesnt have a subdir named 'test' or a 'test.luau' file`)
+			end
 		end
+	else
+		libs_to_test = table.clone(libs_changed)
 	end
 
-	for lib, depinfo in depgraph do
-		for _, libdep in depgraph[lib].deep do
-			if changed_set[libdep] then
-				changed_set[lib] = true
-				table.insert(libs, lib)
+	for lib, info in depgraph do
+		for _, lib_dep in info.deep do
+			if table.find(libs_to_test, lib_dep) then
+				table.insert(libs_to_test, lib)
 				break
 			end
 		end
 	end
 
-	return libs
+	return libs_to_test
 end
+
 
 --mock_roblox()
 
-for _, lib in get_libs_to_test() do
+for _, lib in GET_LIBS_TO_TEST() do
 	--TODO: make me not skip roblox libraries, via switching to using the open cloud execution api stuffs
-	if libinfo(lib).runtime == "roblox" then
+	local libinfo = libinfo(lib)
+
+	if libinfo.runtime and libinfo.runtime.main == "roblox" then
 		continue
 	end
 
@@ -78,7 +68,7 @@ for _, lib in get_libs_to_test() do
 			contents = fs.readFile(init_path)
 			real_path = init_path
 		else
-			error(ansi.boldred(`LIBRARY {lib} HAS A TEST DIRECTORY WITH NO FILE CALLED "init.luau" IN IT`))
+			error(`library {lib} has a test dir with no init.luau file`)
 		end
 	elseif fs.isFile(file_path) then
 		contents = fs.readFile(file_path)
@@ -94,13 +84,8 @@ for _, lib in get_libs_to_test() do
 
 	fs.writeFile(real_path, `{contents}\n\nassert(FINISH())\nprint()`)
 	-- require is no longer relative if its called within a pcall??
-	local success, responce = pcall(require, real_path)
+	;(require)(`@libs/{lib}/test`)
 	fs.writeFile(real_path, contents)
-
-	if not success then
-		task.spawn(error, responce)
-		process.exit(1)
-	end
 end
 
 process.exit(0)
