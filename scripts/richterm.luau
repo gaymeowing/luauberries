@@ -1,3 +1,4 @@
+-- https://github.com/luau-lang/lute/blob/f5dcd0e519527e49622073bfc3678138c7634b1b/batteries/richterm.luau
 --[[
 	richterm
 	terminal ansi formatter
