@@ -1,6 +1,6 @@
 local testkit = require("../../testkit")
-local rbxdeeplink = require("init")
-local url = require("../Url")
+local rbxdeeplink = require("./init")
+local url = require("../url")
 
 local TEST, CASE, CHECK, FINISH = testkit.test()
 

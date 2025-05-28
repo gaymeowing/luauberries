@@ -1,5 +1,5 @@
 local testkit = require("../../testkit")
-local url = require("init")
+local url = require("./init")
 
 local TEST, CASE, CHECK, FINISH = testkit.test()
 

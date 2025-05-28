@@ -1,5 +1,5 @@
 local testkit = require("../../testkit")
-local connector = require("init")
+local connector = require("./init")
 
 local TEST, CASE, CHECK, FINISH, SKIP = testkit.test()
 
@@ -121,3 +121,7 @@ TEST("connector", function()
 end)
 
 assert(FINISH())
+
+
+assert(FINISH())
+print()

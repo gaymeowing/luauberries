@@ -1,4 +1,4 @@
-local ratelimit = require("init")
+local ratelimit = require("./init")
 local testkit = require("../../testkit")
 
 local TEST, CASE, CHECK, FINISH = testkit.test()
@@ -46,3 +46,7 @@ TEST("ratelimit", function()
 		CHECK(check_limit("meow") == false)
 	end
 end)
+
+
+assert(FINISH())
+print()

@@ -1,6 +1,6 @@
 local testkit = require("../../testkit")
 local task = require("@lune/task")
-local race = require("init")
+local race = require("./init")
 
 local TEST, CASE, CHECK, FINISH = testkit.test()
 
@@ -20,3 +20,6 @@ TEST("RACE", function()
 		
 	CHECK(result == "yay! i return!")
 end)
+
+assert(FINISH())
+print()

@@ -1,5 +1,5 @@
 local testkit = require("../../testkit")
-local cross = require("init")
+local cross = require("./init")
 
 local TEST, CASE, CHECK, FINISH, SKIP = testkit.test()
 

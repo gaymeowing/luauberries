@@ -1,5 +1,5 @@
 local testkit = require("../../testkit")
-local weak = require("init")
+local weak = require("./init")
 
 local WEAK_TYPES = { "kvs", "ks", "vs", "kv", "k", "v" }
 local TEST, CASE, CHECK, FINISH = testkit.test()
