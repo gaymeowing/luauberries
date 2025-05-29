@@ -1,5 +1,0 @@
-tags = [ "ratelimiting" ]
-version = "2.2.0"
-
-[runtime]
-main = "pure"
