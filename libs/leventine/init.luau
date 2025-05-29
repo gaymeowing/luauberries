@@ -1,8 +1,10 @@
 --!native
 
--- levintine
--- a port of fastest-levinstein to luau, with added functions for convenience
--- https://github.com/ka-weihe/fastest-levenshtein
+--[[
+	levintine
+	a port of fastest-levinstein to luau, with added functions for convenience
+	https://github.com/ka-weihe/fastest-levenshtein
+]]
 
 type MapInfo = {
 	case_sensitive: boolean?,
@@ -221,7 +223,9 @@ local function score(a: string, b: string, case_sensitive: boolean?): number
 	end
 end
 
-local leventine = {}
+local leventine = {
+	score = score
+}
 
 --[[
 	Gives a copy of `t` sorted based on highest to lowest score when scored aginst `s`
@@ -301,13 +305,5 @@ function leventine.closest(s: string, t: { string }, case_sensitive: boolean?): 
 	end
 	return closest_string, closest_score
 end
-
-
-
-
-
-
-
-leventine.score = score
 
 return table.freeze(leventine)
