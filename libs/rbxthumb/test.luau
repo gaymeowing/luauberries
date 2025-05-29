@@ -7,15 +7,15 @@ local BASE_URL = "rbxthumb://type=%s&id=%d&w=%d&h=%d"
 local CIRCULAR_URL = `{BASE_URL}&filters=circular`
 
 local PLAYER_AUTO_GENERATED_METHODS: { [string]: (player: { UserId: number }, size: string?, circular: boolean?) -> string } = {
-	AvatarHeadshot = rbxthumb.player.headshot,
-	AvatarBust = rbxthumb.player.bust,
-	Avatar = rbxthumb.player.full,
+	AvatarHeadshot = rbxthumb.player_headshot,
+	AvatarBust = rbxthumb.player_bust,
+	Avatar = rbxthumb.player_full,
 } :: any
 
 local AUTO_GENERATED_METHODS: { [string]: (id: number, size: string?, circular: boolean?) -> string } = {
-	AvatarHeadshot = rbxthumb.avatar.headshot,
-	AvatarBust = rbxthumb.avatar.bust,
-	Avatar = rbxthumb.avatar.full,
+	AvatarHeadshot = rbxthumb.avatar_headshot,
+	AvatarBust = rbxthumb.avatar_bust,
+	Avatar = rbxthumb.avatar_full,
 	BundleThumbnail = rbxthumb.bundle,
 	GroupIcon = rbxthumb.group,
 	Outfit = rbxthumb.outfit,
