@@ -23,7 +23,7 @@ local function GET_LIBS_TO_TEST(): { string }
 		for _, lib in process.args do
 			local lib_path = `libs/{lib}`
 
-			if fs.isFile(`{lib_path}/test.luau`) or fs.isDir(`{lib_path}/test`)  then
+			if fs.isFile(`{lib_path}/test.luau`) or fs.isDir(`{lib_path}/test`) then
 				table.insert(libs_to_test, lib)
 			else
 				error(`library {lib} doesn't exist or doesnt have a subdir named 'test' or a 'test.luau' file`)
@@ -44,9 +44,6 @@ local function GET_LIBS_TO_TEST(): { string }
 
 	return libs_to_test
 end
-
-
---mock_roblox()
 
 for _, lib in GET_LIBS_TO_TEST() do
 	--TODO: make me not skip roblox libraries, via switching to using the open cloud execution api stuffs
@@ -83,9 +80,7 @@ for _, lib in GET_LIBS_TO_TEST() do
 	end
 
 	fs.writeFile(real_path, `{contents}\n\nassert(FINISH())\nprint()`)
-	-- require is no longer relative if its called within a pcall??
+	--TODO: replace w lunes luau library
 	;(require)(`@libs/{lib}/test`)
 	fs.writeFile(real_path, contents)
 end
-
-process.exit(0)
