@@ -1,5 +1,0 @@
-tags = [ "signal", "connections", "event" ]
-version = "1.0.0"
-
-[runtime]
-main = "pure"
