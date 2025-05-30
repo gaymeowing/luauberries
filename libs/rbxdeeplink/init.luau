@@ -1,7 +1,9 @@
 --!native
 
--- rbx deeplink
--- utility functions for dealing w roblox deeplinks
+--[[
+	rbx deeplink
+	utility functions for dealing w roblox deeplinks
+]]
 
 local url = require("@libs/url")
 

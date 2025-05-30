@@ -1,7 +1,9 @@
 
--- rbxthumb
--- module for easily creating roblox thumbnail urls, based on nevermores rbxthumbutil
--- although with types 
+--[[
+	rbxthumb
+	module for easily creating roblox thumbnail urls, based on nevermores rbxthumbutil
+	although with types
+]]
 
 type PlayerThumbnailFormatter<S> = (player: Player, size: S?, circular: boolean?) -> Content
 type ThumbnailFormatter<S> = (id: number, size: S?, circular: boolean?) -> Content

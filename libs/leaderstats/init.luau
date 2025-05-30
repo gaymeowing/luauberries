@@ -1,6 +1,8 @@
 
--- leaderstats
--- roblox leaderstats wrapper providing a nicer api, compared to dealing with instances directly 
+--[[
+	leaderstats
+	roblox leaderstats wrapper providing a nicer api, compared to dealing with instances directly 
+]]
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")

@@ -1,7 +1,9 @@
 
--- safe teleport
--- modified version of robloxs safe teleport function on the docs for TeleportAsync with types
--- and api improvements
+--[[
+    safe teleport
+    modified version of robloxs safe teleport function on the docs for TeleportAsync with types
+    and api improvements
+]]
 
 local TeleportService = game:GetService("TeleportService")
 local retryer = require("@libs/retryer")

@@ -1,7 +1,9 @@
 --!native
 
--- playerzone
--- simple util module for detecting players in rectangular zones
+--[[
+	playerzone
+	simple util module for detecting players in rectangular zones
+]]
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")

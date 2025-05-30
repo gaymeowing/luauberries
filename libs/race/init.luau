@@ -1,6 +1,8 @@
 
--- race
--- a function for getting the first return out of a vararg of functions
+--[[
+	race
+	a function for getting the first return out of a vararg of functions
+]]
 
 local cross = require("@libs/cross")
 

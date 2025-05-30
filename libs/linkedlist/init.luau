@@ -1,13 +1,15 @@
 --!native
 
--- linked list
--- a doubly-linked list impl in luau, easily inserts and deletes arbitrarily without reordering. 
--- a reference to the entry to insert or delete at is required. References to the front and back of
--- the list always exist.
--- originally made by last talon, uh heavily modified by me (kalrnlo) because im a nitpicker
--- w a changed up api to directly expose the nodes and also not create a new closure
--- for every node created
--- og: https://github.com/LastTalon/linked-list
+--[[
+	linked list
+	a doubly-linked list impl in luau, easily inserts and deletes arbitrarily without reordering. 
+	a reference to the entry to insert or delete at is required. References to the front and back of
+	the list always exist.
+	originally made by last talon, uh heavily modified by me (kalrnlo) because im a nitpicker
+	w a changed up api to directly expose the nodes and also not create a new closure
+	for every node created
+	https://github.com/LastTalon/linked-list
+]]
 
 type NodePrototype<V> = {
 	__call: (self: Node<V>) -> V,

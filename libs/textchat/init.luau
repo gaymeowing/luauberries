@@ -1,6 +1,8 @@
 
--- textchat
--- simple utility module for TextChatService
+--[[
+	textchat
+	simple utility module for TextChatService
+]]
 
 local TextChatService = game:GetService("TextChatService")
 local RunService = game:GetService("RunService")

@@ -1,13 +1,15 @@
 --!optimize 2
 --!native
 
--- Grouper
--- Used for getting the latest group rank or role of a player on the server,
--- and reducing groups api requests as only the server will make the requests
--- and then send down the rank & role for a player. 
--- Rather than using Player:GetRankInGroup() on the client, 
--- and end up constantly making api requests as Player:GetRankInGroup() 
--- only caches its result on the server
+--[[
+	Grouper
+	Used for getting the latest group rank or role of a player on the server,
+	and reducing groups api requests as only the server will make the requests
+	and then send down the rank & role for a player. 
+	Rather than using Player:GetRankInGroup() on the client, 
+	and end up constantly making api requests as Player:GetRankInGroup() 
+	only caches its result on the server
+]]
 
 local GroupService = game:GetService("GroupService")
 local RunService = game:GetService("RunService")

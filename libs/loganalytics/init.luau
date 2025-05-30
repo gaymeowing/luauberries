@@ -1,6 +1,8 @@
 
--- loganalytics
--- a simple wrapper around analytics service's bad api, that makes it into a decent api
+--[[
+	loganalytics
+	a simple wrapper around analytics service's bad api, that makes it into a decent api
+]]
 
 local AnalyticsService = game:GetService("AnalyticsService")
 

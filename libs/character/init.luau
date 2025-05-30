@@ -1,8 +1,10 @@
 
--- character
--- simple utility module for getting accurate character types,
--- and with a special added function that also runs the callback
--- if the player already has a character
+--[[
+	character
+	simple utility module for getting accurate character types,
+	and with a special added function that also runs the callback
+	if the player already has a character
+]]
 
 local Players = game:GetService("Players")
 

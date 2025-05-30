@@ -1,6 +1,8 @@
 
--- rbxsafeconn
--- utility for safely connecting to commonly used events where you'd also iterate through some instances
+--[[
+	rbxsafeconn
+	utility for safely connecting to commonly used events where you'd also iterate through some instances
+]]
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")

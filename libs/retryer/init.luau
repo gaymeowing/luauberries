@@ -1,7 +1,9 @@
 --!native
 
--- retryer
--- utility module for retrying functions easily
+--[[
+	retryer
+	utility module for retrying functions easily
+]]
 
 local cross = require("@libs/cross")
 

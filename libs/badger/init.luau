@@ -1,6 +1,8 @@
 
--- badger
--- badge service wrapper
+--[[
+	badger
+	badge service wrapper
+]]
 
 local BadgeService = game:GetService("BadgeService")
 local RunService = game:GetService("RunService")
