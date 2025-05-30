@@ -4,8 +4,8 @@
 	module for generating a dependency graph for all libraries
 ]]
 
+local deep_iter_scripts = require("@scripts/deep_iter_scripts")
 local require_pattern = require("@scripts/require_pattern")
-local iter_scripts = require("@scripts/iter_scripts")
 local read_dir = require("@scripts/read_dir")
 local remove = require("@scripts/remove")
 local process = require("@lune/process")
@@ -31,7 +31,7 @@ end
 for lib, depinfo in GRAPH do
 	local shallow = depinfo.shallow
 
-	iter_scripts(`libs/{lib}`, function(_, src)
+	deep_iter_scripts(`libs/{lib}`, function(_, src)
 		for dep_lib in string.gmatch(src, require_pattern.libs_alias) do
 			if not table.find(shallow, dep_lib) then
 				table.insert(shallow, dep_lib)

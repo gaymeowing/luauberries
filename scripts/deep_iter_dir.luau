@@ -1,11 +1,10 @@
 
 --[[
-	iter dir
+	deep iter dir
 	recursively iterates over a directory and 
 	calls a callback that can then optionally move or change the contents of the file
 ]]
 
-local get_depth_for_path = require("@scripts/get_depth_for_path")
 local read_dir = require("@scripts/read_dir")
 local remove = require("@scripts/remove")
 local fs = require("@lune/fs")
@@ -31,10 +30,10 @@ type DirInfo = {
 
 local DIRQUEUE = {} :: { DirInfo }
 
-local function iter_dir(path: string, f: IterDirCallback)
+local function deep_iter_dir(path: string, f: IterDirCallback)
 	local queue_len = 1
 	DIRQUEUE[1] = {
-		depth = get_depth_for_path(path),
+		depth = #string.split(path, "/"),
 		path = path,
 	}
 
@@ -84,4 +83,4 @@ local function iter_dir(path: string, f: IterDirCallback)
 	table.clear(DIRQUEUE)
 end
 
-return iter_dir
+return deep_iter_dir

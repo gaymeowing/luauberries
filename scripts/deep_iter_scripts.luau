@@ -1,19 +1,18 @@
 
 --[[
-	iter scripts
+	deep iter scripts
 	recursively iterates over every luau file in a directory
 	and calls a callback that can then optionally overwrite the file
 ]]
 
-local ends_with = require("@scripts/ends_with")
-local iter_dir = require("@scripts/iter_dir")
+local deep_iter_dir = require("@scripts/deep_iter_dir")
 
 type IterScriptsCallback = ((path: string, src: string, depth: number) -> string?) |
 	((path: string, src: string, depth: number) -> ())
 
-local function iter_scripts(dir: string, f: IterScriptsCallback)
-	iter_dir(dir, function(_, path, content, depth)
-		if ends_with(path, ".luau") then
+local function deep_iter_scripts(dir: string, f: IterScriptsCallback)
+	deep_iter_dir(dir, function(_, path, content, depth)
+		if string.sub(path, 1, #path - 5) == ".luau" then
 			local new_src = f(path, content, depth)
 
 			if new_src then
@@ -26,4 +25,4 @@ local function iter_scripts(dir: string, f: IterScriptsCallback)
 	end :: any)
 end
 
-return iter_scripts
+return deep_iter_scripts

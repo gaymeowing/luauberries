@@ -4,7 +4,7 @@
 	generates sidebar, and homepage
 ]]
 
-local iter_dir = require("@scripts/iter_dir")
+local deep_iter_dir = require("@scripts/deep_iter_dir")
 local read_dir = require("@scripts/read_dir")
 local gsub = require("@scripts/gsub")
 local serde = require("@lune/serde")
@@ -81,7 +81,7 @@ for _, lib_doc in read_dir("docs") do
 				text = name,
 			}
 
-			iter_dir(path, function(name, file_path)				
+			deep_iter_dir(path, function(name, file_path)				
 				if file_path ~= index_path then
 					table.insert(items, {
 						text = NAME_FROM_FILE_NAME(name),
