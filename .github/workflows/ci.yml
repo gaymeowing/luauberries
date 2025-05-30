@@ -41,6 +41,7 @@ jobs:
       - uses: CompeyDev/setup-rokit@v0.1.0
       - uses: actions/checkout@v4
         with:
+          # do not remove this, libs_changed WILL break
           fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
 
       - name: Install Toolchain
