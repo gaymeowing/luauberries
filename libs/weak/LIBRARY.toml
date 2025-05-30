@@ -1,5 +1,0 @@
-tags = [ "weak tables" ]
-version = "1.0.0"
-
-[runtime]
-main = "pure"
