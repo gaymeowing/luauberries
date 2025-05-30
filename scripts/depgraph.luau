@@ -4,7 +4,7 @@
 	module for generating a dependency graph for all libraries
 ]]
 
-local get_require_pattern = require("@scripts/get_require_pattern")
+local require_pattern = require("@scripts/require_pattern")
 local iter_scripts = require("@scripts/iter_scripts")
 local read_dir = require("@scripts/read_dir")
 local remove = require("@scripts/remove")
@@ -16,7 +16,6 @@ export type DependencyInfo = {
 	deep: { string },
 }
 
-local REQUIRE_PATTERN = get_require_pattern("@libs/(%w+).-")
 local GRAPH = {} :: { [string]: DependencyInfo }
 local FOUND = {} :: { [string]: boolean }
 local DEPQUEUE = {} :: { string }
@@ -33,7 +32,7 @@ for lib, depinfo in GRAPH do
 	local shallow = depinfo.shallow
 
 	iter_scripts(`libs/{lib}`, function(_, src)
-		for dep_lib in string.gmatch(src, REQUIRE_PATTERN) do
+		for dep_lib in string.gmatch(src, require_pattern.libs_alias) do
 			if not table.find(shallow, dep_lib) then
 				table.insert(shallow, dep_lib)
 			end
