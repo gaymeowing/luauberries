@@ -2,13 +2,8 @@ name: Release
 
 on:
   workflow_dispatch:
-    inputs:
-      libs:
-        description: 'List of libraries to force new releases for'
-        required: true
-        type: string
   workflow_run:
-    workflows: ["CI"]
+    workflows: [ "CI" ]
     types:
       - completed
 
@@ -18,24 +13,11 @@ jobs:
     steps:
       - uses: CompeyDev/setup-rokit@v0.1.0
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
 
       - name: Install Toolchain
         run: rokit install --no-trust-check
 
-      - name: Fetch Changed
-        id: changed
-        uses: tj-actions/changed-files@v45
-        with:
-          fetch_depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
-          path: "libs"
-          json: true
-
-      - name: Write changed
-        run: echo ${{ steps.changed.outputs.all_changed_files }} >> .changed
-
       - name: Run releases script
         env:
           GH_TOKEN: ${{ github.token }}
-        run: lune run scripts/release ${{ inputs.libs }}
+        run: lune run scripts/release

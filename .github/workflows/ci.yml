@@ -7,20 +7,17 @@ on:
         description: 'libraries'
         required: false
         type: string
-  # im just including everything under scripts,
-  # because its easier and it means i dont forget to add a script here
-  # because theres certain scripts where if theyre changed, all tests should be ran
   push:
     branches: [ main ]
     paths:
       - ".github/workflows/ci.yml"
+      - "scripts/*"
       - "libs/**"
-      - "scripts/**"
   pull_request:
     branches: [ main ]
     paths:
       - ".github/workflows/ci.yml"
-      - "scripts/**"
+      - "scripts/*"
       - "libs/**"
 
 jobs:
@@ -43,8 +40,6 @@ jobs:
     steps:
       - uses: CompeyDev/setup-rokit@v0.1.0
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
 
       - name: Install Toolchain
         run: rokit install --no-trust-check
