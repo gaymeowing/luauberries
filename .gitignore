@@ -1,9 +1,8 @@
-node_modules
-docs/.vitepress/dist
-docs/.vitepress/cache
-sourcemap.json
-darklua_output
 docs/.vitepress/sidebar-libs.json
+docs/.vitepress/cache
+docs/.vitepress/dist
+sourcemap.json
 docs/index.md
-libs_copy
+node_modules
+RELEASE
 dist
