@@ -5,4 +5,5 @@ sourcemap.json
 docs/index.md
 node_modules
 RELEASE
+DIST
 dist

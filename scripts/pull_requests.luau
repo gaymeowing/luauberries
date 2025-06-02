@@ -14,7 +14,6 @@ export type PullRequestInfo = {
 	number: number,
 	author: string,
 	title: string,
-	url: string,
 }
 
 local LIBS_TO_PRS = {} :: { [string]: { PullRequestInfo } }
@@ -55,7 +54,7 @@ do
 
 	local pull_requests = serde.decode(
 		"json", 
-		summon("gh pr list --json author,mergedAt,files,title,number,url --limit 100 --state merged")
+		summon("gh pr list --json author,mergedAt,files,title,number --limit 100 --state merged")
 	)
 
 	for _, lib in read_dir("libs") do
@@ -76,7 +75,6 @@ do
 						author = pr.author.login,
 						number = pr.number,
 						title = pr.title,
-						url = pr.url,
 					})
 				end
 			end
