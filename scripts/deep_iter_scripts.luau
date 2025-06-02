@@ -12,7 +12,7 @@ type IterScriptsCallback = ((path: string, src: string, depth: number) -> string
 
 local function deep_iter_scripts(dir: string, f: IterScriptsCallback)
 	deep_iter_dir(dir, function(_, path, content, depth)
-		if string.sub(path, 1, #path - 5) == ".luau" then
+		if string.sub(path, #path - 3, #path) == "luau" then
 			local new_src = f(path, content, depth)
 
 			if new_src then
