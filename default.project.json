@@ -1,6 +1,6 @@
 {
 	"emitLegacyScripts": false,
-	"name": "universe",
+	"name": "luauberries",
 	"tree": {
 		"$className": "DataModel",
 		"ReplicatedStorage": {
