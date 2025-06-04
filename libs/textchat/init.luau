@@ -14,11 +14,11 @@ local PLAYERS_CHAT_LOADED = {} :: { [number]: { thread } | true }
 local PLAYER_SOURCES = {} :: { [number]: { TextSource } }
 local DEFUALT_CHAT_ENDING = ":  "
 local CHAT_COLORS = table.freeze {
-	 -- BrickColor.new("Bright red").Color,
+	-- BrickColor.new("Bright red").Color,
 	Color3.new(253/255, 41/255, 67/255),
-	 -- BrickColor.new("Bright blue").Color,
+	-- BrickColor.new("Bright blue").Color,
 	Color3.new(1/255, 162/255, 255/255),
-	 -- BrickColor.new("Earth green").Color,
+	-- BrickColor.new("Earth green").Color,
 	Color3.new(2/255, 184/255, 87/255),
 	BrickColor.new("Bright violet").Color,
 	BrickColor.new("Bright orange").Color,
@@ -57,7 +57,7 @@ end
 local function wait_for_player_chat_loaded(player: Player): boolean
 	if TextChatService:CanUserChatAsync(player.UserId) then
 		local has_player_loaded: true | {thread} = PLAYERS_CHAT_LOADED[player.UserId]
-	
+
 		if has_player_loaded == true then
 			return true
 		elseif has_player_loaded then
@@ -97,28 +97,28 @@ local function get_color_for_name(name: string): Color3
 	local name_len = #name
 	local sub_number = if name_len % 2 == 1 then -1 else 0
 	local name_value = 0
-	
+
 	for index, codepoint in { string.byte(name, 1, name_len) } do
 		name_value += if (((name_len - index) + 1) - sub_number) % 4 >= 2 then
-				-codepoint
+			-codepoint
 			else
-				codepoint
+			codepoint
 	end
-	
+
 	return CHAT_COLORS[(name_value % COLOR_COUNT) + 1]
 end
 
 local function set_player_mute(player: Player, ismuted: boolean, channel: TextChannel?)
 	if wait_for_player_chat_loaded(player) then
 		if channel then
-			local source = channel:FindFirstChild(player.Name)
-
-			if source then
-				(source :: any).IsMuted = ismuted
+			for _, source in channel:GetDescendants() do
+				if source:IsA("TextSource") and source.UserId == player.UserId then
+					source.CanSend = not ismuted
+				end
 			end
 		else
-			for _, source: any in PLAYER_SOURCES[player.UserId] do
-				source.IsMuted = ismuted
+			for _, source in PLAYER_SOURCES[player.UserId] do
+				source.CanSend = not ismuted
 			end
 		end
 	end
@@ -127,15 +127,19 @@ end
 local function is_player_muted(player: Player, channel: TextChannel?): boolean
 	if wait_for_player_chat_loaded(player) then
 		if channel then
-			local source = channel:FindFirstChild(player.Name)
-
-			return if source then (source :: any).IsMuted else false
+			for _, source in channel:GetDescendants() do
+				if source:IsA("TextSource") and (source.UserId == player.UserId) and source.CanSend then
+					return false
+				end
+			end
+			
+			return true
 		else
 			local sources = PLAYER_SOURCES[player.UserId]
 			local muted_count = 0
 
-			for _, source: any in sources do
-				if source.IsMuted then
+			for _, source in sources do
+				if not source.CanSend then
 					muted_count += 1
 				end
 			end
@@ -203,7 +207,7 @@ if RunService:IsServer() then
 			end
 		end
 	end)
-	
+
 end
 
 return table.freeze({
