@@ -71,6 +71,32 @@ type function range(t: type)
 	return t
 end
 
+type Duration<F, T> = {
+	from: F,
+	to: T,
+}
+
+--TODO: replace stuff here w type:issubtypeof() when added
+type DurationOrDurations<F, T> = Duration<F, T> | { Duration<F, T> }
+
+export type TimeInfo<S = number, M = number, H = number> = {
+	hour: H,
+	sec: S,
+	min: M,
+}
+
+--TODO: in future when number libterals exist use a type function for insuring a range for the day arg
+export type DateInfo<D = number, M = number, Y = number> = {
+	month: M,
+	year: Y,
+	day: D,
+}
+
+export type DateTimeInfo<
+	S = number, MIN = number, H = number, 
+	D = number, MONTH = number, Y = number
+> = DateInfo<D, MONTH, Y> & TimeInfo<S, MIN, H>
+
 -- Question Bases
 
 type BaseQuestionBase<TYPE, A, C, MAXL, MINL, F, T, B, R> = {
@@ -298,46 +324,28 @@ export type ScaleQuizQuestions = ScaleQuizQuestion<true> | ScaleQuizQuestion<fal
 
 export type ScaleQuestion<F = number, T = number> = range<QuestionBase<"Scale", nil, nil, nil, nil, F, T>>
 
-export type TimeInfo<S = number, M = number, H = number> = {
-	hour: H,
-	sec: S,
-	min: M,
-}
-
---TODO: in future when number libterals exist use a type function for insuring a range for the day arg
-export type DateInfo<D = number, M = number, Y = number> = {
-	month: M,
-	year: Y,
-	day: D,
-}
-
-export type DateTimeInfo<
-	S = number, MIN = number, H = number, 
-	D = number, MONTH = number, Y = number
-> = DateInfo<D, MONTH, Y> & TimeInfo<S, MIN, H>
-
-export type DateTimeQuizQuestion<R = false?, F = DateTimeInfo?, T = DateTimeInfo?, A = {
-	from: DateTimeInfo,
-	to: DateTimeInfo,
-}?, B = Bonus> = QuizQuestionBase<"DateTime", A, nil, nil, nil, F, T, R, B>
+export type DateTimeQuizQuestion<
+	R = false?, F = DateTimeInfo?, T = DateTimeInfo?,
+	A = DurationOrDurations<DateTimeInfo, DateTimeInfo> | DateTimeInfo?, B = Bonus
+> = QuizQuestionBase<"DateTime", A, nil, nil, nil, F, T, R, B>
 
 export type DateTimeQuizQuestions = DateTimeQuizQuestion<true> | DateTimeQuizQuestion<false>
 
 export type DateTimeQuestion<F = DateTimeInfo?, T = DateTimeInfo?> = QuestionBase<"DateTime", nil, nil, nil, nil, F, T>
 
-export type DateQuizQuestion<R = false?, F = DateInfo?, T = DateInfo?, A = {
-	from: DateInfo,
-	to: DateInfo,
-}?, B = Bonus> = QuizQuestionBase<"Date", A, nil, nil, nil, F, T, R, B>
+export type DateQuizQuestion<
+	R = false?, F = DateInfo?, T = DateInfo?, 
+	A = DurationOrDurations<DateInfo, DateInfo> | DateInfo?, B = Bonus
+> = QuizQuestionBase<"Date", A, nil, nil, nil, F, T, R, B>
 
 export type DateQuizQuestions = DateQuizQuestion<true> | DateQuizQuestion<false>
 
 export type DateQuestion<F = DateInfo?, T = DateInfo?> = QuestionBase<"Date", nil, nil, nil, nil, F, T>
 
-export type TimeQuizQuestion<R = false?, F = TimeInfo?, T = TimeInfo?, A = {
-	from: TimeInfo,
-	to: TimeInfo,
-}?, B = Bonus> = QuizQuestionBase<"Time", A, nil, nil, nil, F, T, R, B>
+export type TimeQuizQuestion<
+	R = false?, F = TimeInfo?, T = TimeInfo?, 
+	A = DurationOrDurations<TimeInfo, TimeInfo> | TimeInfo?, B = Bonus
+> = QuizQuestionBase<"Time", A, nil, nil, nil, F, T, R, B>
 
 export type TimeQuizQuestions = TimeQuizQuestion<true> | TimeQuizQuestion<false>
 
@@ -427,6 +435,27 @@ type RegisteredQuestionInfo = {
 	0..255 bytes for name
 ]]
 --[[
+	date buffer spec:
+		1 byte day
+		1 byte month
+		2 bytes year
+]]
+--[[
+	time buffer spec:
+		1 byte seconds
+		1 byte minutes
+		1 byte hours
+]]
+--[[
+	date time buffer spec:
+		1 byte seconds
+		1 byte minutes
+		1 byte hours
+		1 byte day
+		1 byte month
+		2 bytes year
+]]
+--[[
 	form responce buffer spec:
 	1 bytes for info len
 	0..255 bytes for info
@@ -448,6 +477,15 @@ type RegisteredQuestionInfo = {
 		text:
 			2 bytes for len
 			0..65_535 bytes for string
+
+		date time:
+			date time
+
+		date:
+			date
+
+		time:
+			time
 ]]
 type FormSerializerPrototype<F> = {
 	--TODO: replace the any for the answer param with a type function
@@ -472,6 +510,14 @@ type FormSerializer<F> = setmetatable<{
 	read form: F,
 }, FormSerializerPrototype<F>>
 
+type BaseTimeQuestionProducerPrototype<T, Q> = {
+	remove_duration: (base_time_producer: BaseTimeQuestionProducer<T, Q>, duration: Duration<T, T>) -> (),
+	add_duration: (base_time_producer: BaseTimeQuestionProducer<T, Q>, duration: Duration<T, T>) -> (),
+	finish: (base_time_producer: BaseTimeQuestionProducer<T, Q>) -> Q,
+	__index: BaseTimeQuestionProducerPrototype<T, Q>,
+}
+
+type BaseTimeQuestionProducer<T, Q = {}> = setmetatable<Q, BaseTimeQuestionProducerPrototype<T, Q>>
 
 type ChoiceQuestionProducerPrototype<Q> = {
 	remove: (choice_producer: ChoiceQuestionProducer<Q>, choice: string) -> (),
@@ -480,9 +526,7 @@ type ChoiceQuestionProducerPrototype<Q> = {
 	__index: ChoiceQuestionProducerPrototype<Q>,
 }
 
-type ChoiceQuestionProducer<Q> = setmetatable<{
-	read question: Q,
-}, ChoiceQuestionProducerPrototype<Q>>
+type ChoiceQuestionProducer<Q = {}> = setmetatable<Q, ChoiceQuestionProducerPrototype<Q>>
 
 type ChoiceQuizQuestionProducerPrototype<Q> = {
 	find: (choice_producer: ChoiceQuizQuestionProducer<Q>, choice: string) -> ("incorrect" | "correct")?,
@@ -493,9 +537,7 @@ type ChoiceQuizQuestionProducerPrototype<Q> = {
 	__index: ChoiceQuizQuestionProducerPrototype<Q>,
 }
 
-type ChoiceQuizQuestionProducer<Q> = setmetatable<{
-	read question: Q,
-}, ChoiceQuizQuestionProducerPrototype<Q>>
+type ChoiceQuizQuestionProducer<Q = {}> = setmetatable<Q, ChoiceQuizQuestionProducerPrototype<Q>>
 
 type MultipleChoiceQuizQuestionProducer<R = false?, B = Bonus> = ChoiceQuizQuestionProducer<
 	MultipleChoiceQuizQuestion<R, { string }, { string }, B>
@@ -514,8 +556,8 @@ type CheckboxesQuestionProducer = ChoiceQuizQuestionProducer<CheckboxesQuestion>
 		and remove add/remove returning any (this is currently because of recusrive type restrictions!! grr)
 ]]
 type FormProducerPrototype<N, IQ, FRI> = {
-	add_question: <QI>(editor: FormProducer<N, IQ, FRI>, name: string, info: QI) -> any,
-	remove_question: (editor: FormProducer<N, IQ, FRI>, name: string) -> any,
+	add_question: <QI>(form_producer: FormProducer<N, IQ, FRI>, name: string, info: QI) -> any,
+	remove_question: (form_producer: FormProducer<N, IQ, FRI>, name: string) -> any,
 	--TODO: replace brackets w type function based on IQ (is_quiz)
 	--finish: (editor: FormProducer<N, IQ, FRI>) -> Form<N, IQ, {}, FRI>,
 	__index: FormProducerPrototype<N, IQ, FRI>,
@@ -656,6 +698,25 @@ local function WRITE_BOOLEAN(b: buffer, offset: number, v: boolean?): number
 	return WRITE_U8(b, offset, if v then 1 else 0)
 end
 
+local function WRITE_TIME(b: buffer, offset: number, sec: number, min: number, hour: number): number
+	offset = WRITE_U8(b, offset, sec)
+	offset = WRITE_U8(b, offset, min)
+	return WRITE_U8(b, offset, hour)
+end
+
+local function WRITE_DATE(b: buffer, offset: number, day: number, month: number, year: number): number
+	offset = WRITE_U8(b, offset, day)
+	offset = WRITE_U8(b, offset, month)
+	return WRITE_U16(b, offset, year)
+end
+
+local function WRITE_DATE_TIME(
+	b: buffer, offset: number, sec: number, min: number, hour: number, 
+	day: number, month: number, year: number
+): number
+	return WRITE_DATE(b, WRITE_TIME(b, offset, sec, min, hour), day, month, year)
+end
+
 -- this guy doesnt inline so native it will be 
 @native
 local function WRITE_CHOICES(
@@ -682,13 +743,19 @@ end
 
 local function TYPE_TO_NUM(type: QuestionType): number
 	return if type == "MultipleChoice" then
-			4
+			6
 		elseif type == "Checkboxes" then
-			3
+			5
+		elseif type == "DateTime" then
+			4
 		elseif type == "Scale" then
+			3
+		elseif type == "Date" then
 			2
-		else
+		elseif type == "Time" then
 			1
+		else -- text
+			0
 end
 
 local function FREEZE_IF_NOT_FROZEN<T>(t: T & {}): T
@@ -849,7 +916,9 @@ function form.to_buffer(form, info)
 
 			size += #question.name + 6
 
-			if question_type == "Scale" then
+			if question_type == "DateTime" then
+				size += 7
+			elseif question_type == "Scale" then
 				size += 2
 
 				if answer then
@@ -861,6 +930,10 @@ function form.to_buffer(form, info)
 				if answer then
 					size += #answer + 2
 				end
+			elseif question_type == "Date" then
+				size += 4
+			elseif question_type == "Time" then
+				size += 3
 			else
 				local choices = question.choices
 				size += (#choices * 2) + 1
