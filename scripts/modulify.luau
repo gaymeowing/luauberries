@@ -63,19 +63,16 @@ local function MODULIFY_ITER_DIR(
 	return queue_len
 end
 
-local function modulify(path: string, ignore_cache: boolean?): ModuleScript
+local function modulify(lib: string, path: string, ignore_cache: boolean?): ModuleScript
 	if not ignore_cache then
-		local module = CACHED_MODULES[path]
+		local module = CACHED_MODULES[lib]
 		
 		if module then
 			return module
 		end
 	end
 
-	local module = CREATE_MODULE_SCRIPT(
-		string.match(path, "[^/]*$") :: string, -- getting folder name from path
-		fs.readFile(`{path}/init.luau`)
-	)
+	local module = CREATE_MODULE_SCRIPT(lib, fs.readFile(`{path}/init.luau`))
 	local queue_len = 0
 
 	queue_len = MODULIFY_ITER_DIR(queue_len, path, module)
