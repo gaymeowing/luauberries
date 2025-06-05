@@ -1,4 +1,3 @@
-
 --[[
 	release
 	makes releases for libraries
@@ -8,6 +7,7 @@ local deep_iter_scripts = require("@scripts/deep_iter_scripts")
 local require_pattern = require("@scripts/require_pattern")
 local pull_requests = require("@scripts/pull_requests")
 local libs_changed = require("@scripts/libs_changed")
+local read_dir = require("@scripts/read_dir")
 local modulify = require("@scripts/modulify")
 local depgraph = require("@scripts/depgraph")
 local license = require("@scripts/license")
@@ -19,14 +19,14 @@ local zip = require("@scripts/zip")
 local fs = require("@lune/fs")
 
 local FILE_NEW_LINE_CHAR = if process.os == "windows" then "\r\n" else "\n"
-local HEADER_PATTERN = `^%s*%-%-%[%[([%w%s%p]+)%]%]{FILE_NEW_LINE_CHAR}`
-local LIB_REQUIRE_LINE_PATTERN = require_pattern.create("@libs/.-")
 local GIT_LOG_HASHES_ARGS = "--author-date-order --pretty=format:%H"
+local LIB_REQUIRE_LINE_PATTERN = require_pattern.create("@libs/.-")
 local BASE_REPO_URL = "https://github.com/gaymeowing/luauberries"
-local HOT_COMMENT_PATTERN = `%-%-!.-{FILE_NEW_LINE_CHAR}`
+local HOT_COMMENT_PATTERN = `%-%-![^%[%]]+{FILE_NEW_LINE_CHAR}`
 local BASE_COMMIT_URL = `{BASE_REPO_URL}/commits/`
-local LICENSE = string.sub(license, 5, #license)
+local LICENSE = string.sub(license, 5, #license - 2)
 local BASE_PULL_URL = `{BASE_REPO_URL}/pull/`
+local LIBS_TO_RELEASE_FOR = {}
 local RELEASE_DIR = "RELEASE"
 local DIST_DIR = "DIST"
 
@@ -66,8 +66,8 @@ local function COPY_LIB_FOR_RELEASE(lib: string, to: string)
 		depth -= 2
 		local depth_even_half = depth // 2
 		local hot_comments = {}
-		local header
 
+		src = string.gsub(src, "\r", "")
 		src = string.gsub(src, LIB_REQUIRE_LINE_PATTERN, function(line)
 			local inner = string.rep("../", depth_even_half)
 
@@ -79,20 +79,26 @@ local function COPY_LIB_FOR_RELEASE(lib: string, to: string)
 				.. string.match(line, require_pattern.libs_alias) 
 				.. string.match(line, require_pattern.ending)
 		end)
+		--[[
+			this is overkill ik, but it was a pain to get this to work right so its staying
+			until i forget the horrors and have the urge to switch it to string.match or something
+		]]
 		src = string.gsub(src, HOT_COMMENT_PATTERN, function(hot_comment)
 			table.insert(hot_comments, hot_comment)
 			return ""
 		end)
-		src = string.gsub(src, HEADER_PATTERN, function(header_body)
-			header = `--[[{header_body}`
-			return ""
-		end)
 
-		if not header then
+		local header_start = string.find(src, "--[[", 1, true)
+		local header_end = string.find(src, `]]`, 1, true)
+
+		if header_start and header_end then
+			return ((#hot_comments ~= 0 and table.concat(hot_comments)) or FILE_NEW_LINE_CHAR)
+				.. string.sub(src, header_start, header_end - 1)
+				.. LICENSE
+				.. string.sub(src, header_end, #src)
+		else
 			error(`library '{lib}' does not have a header comment`, 5)
 		end
-
-		return `{table.concat(hot_comments) or ""}\n{header or ""}{LICENSE}\n{src}`
 	end)
 end
 
@@ -137,42 +143,63 @@ local function reverse<V>(t: { V }): { V }
 	return t
 end
 
+pcall(fs.removeDir, RELEASE_DIR)
+pcall(fs.removeDir, DIST_DIR)
 fs.writeDir(DIST_DIR)
 
-for _, lib in libs_changed do
-	COPY_LIB_FOR_RELEASE(lib, `{RELEASE_DIR}/{lib}/alone`)
+do
+	
+	if process.args[1] == "all" then
+		LIBS_TO_RELEASE_FOR = read_dir("libs")
+	elseif #process.args ~= 0 then
+		table.move(libs_changed, 1, #libs_changed, 1, LIBS_TO_RELEASE_FOR)
+
+		for _, arg in process.args do
+			if fs.isDir(`libs/{arg}`) then
+				table.insert(LIBS_TO_RELEASE_FOR, arg)
+			else
+				error(`library '{arg}' doesn't exist`)
+			end
+		end
+	else
+		LIBS_TO_RELEASE_FOR = libs_changed
+	end
+
 end
 
-for _, lib in libs_changed do
+for _, lib in LIBS_TO_RELEASE_FOR do
+	COPY_LIB_FOR_RELEASE(lib, `{RELEASE_DIR}/{lib}`)
+end
+
+for _, lib in LIBS_TO_RELEASE_FOR do
 	local last_commit_time = get_last_unreleased_commit_time(lib)
 	local commits = reverse(get_unreleased_commits(lib, last_commit_time))
 	local copy_path = `{RELEASE_DIR}/{lib}`
-	local alone_path = `{copy_path}/alone`
-	local version = libinfo(lib).version
-	local module =  modulify(alone_path)
+	local module =  modulify(lib, copy_path)
 	local rbxm = roblox.serializeModel({ module })
-	local zipped = zip(alone_path)
+	local notes = { "## Whats changed\n" }
+	local version = libinfo(lib).version
 	local depinfo = depgraph[lib]
 	local zipped_with_deps: any
 	local rbxm_with_deps: any
-	local notes = {
-		"## Whats changed",
-		"",
-	}
+
+	fs.copy(copy_path, lib)
+	local zipped = zip(lib)
+	fs.removeDir(lib)
 
 	if depinfo.has_deps then
 		local modules = table.create(#depinfo.deep + 1) :: any
-		local deps_path = `{copy_path}/deps`
+		local deps_path = `{lib}-deps`
 
-		fs.copy(alone_path, `{deps_path}/{lib}`, true)
+		fs.copy(copy_path, `{deps_path}/{lib}`, true)
 		modules[1] = module
 
 		for index, dep in depinfo.deep do
-			local dep_path = `{RELEASE_DIR}/{dep}/alone`
+			local dep_path = `{RELEASE_DIR}/{dep}`
 
 			if not fs.isDir(dep_path) then
 				COPY_LIB_FOR_RELEASE(dep, dep_path)
-				modules[index + 1] = modulify(dep_path)
+				modules[index + 1] = modulify(dep, dep_path)
 			end
 
 			fs.copy(dep_path, `{deps_path}/{dep}`, true)
