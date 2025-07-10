@@ -46,7 +46,7 @@ local function MODULIFY_ITER_DIR(
 		if fs.isDir(sub_path) then
 			local init_path = `{sub_path}/init.luau`
 			local instance = if fs.isFile(init_path) then
-					CREATE_MODULE_SCRIPT(sub_name, fs.readFile(sub_path), parent)
+					CREATE_MODULE_SCRIPT(sub_name, fs.readFile(init_path), parent)
 				else
 					CREATE_FOLDER(sub_name, parent)
 			queue_len += 1
