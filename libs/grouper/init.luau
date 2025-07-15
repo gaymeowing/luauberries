@@ -222,7 +222,9 @@ function grouper.init.client(config: ClientConfig)
 			THREADS_WAITING_FOR_PLAYERS[player] = nil
 		end
 		
-		connector.spawn(CHANGED_CONNECTIONS, player, rank, old_rank)
+		for _, callback in RANK_CHANGED_CALLBACKS do
+			task.spawn(callback, player, rank, old_rank)
+		end
 	end)
 
 	Players.PlayerRemoving:Connect(on_player_removing)
