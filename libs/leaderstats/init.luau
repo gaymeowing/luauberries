@@ -9,29 +9,26 @@ local Players = game:GetService("Players")
 
 type AllowedValues = number | string
 
-type AllowedDefaults = "float" | "string" | "interger" | AllowedValues
+type AllowedDefaults = "float" | "string" | "integer" | AllowedValues
 
 type Stats = { [string]: AllowedValues }
 
 type LeaderstatsFolder =  Folder & { [string]: ValueBase & { Value: AllowedValues } }
 
--- this exists for no reason other than "well theres an interger pattern for having an interger with a number literal so why not for floats"
+-- this exists for no reason other than "well theres an integer pattern for having an integer with a number literal so why not for floats"
 type FloatPattern = "^f(%-?%d+%.?%d*)$"
 
-type IntergerPattern = "^i(%-?%d+)$"
+type IntegerPattern = "^i(%-?%d+)$"
 
-type function LeaderstatsCreator(
-	stats: { [string]: AllowedDefaults }, defaults_string: "defaults", 
-	float_pattern: FloatPattern, interger_pattern: IntergerPattern, 
-	player_type: Player, nil_type: nil
-)
+type function LeaderstatsCreator(stats: type, player_type: type)
 	if stats.tag ~= "table" then
 		error("stats is not of type 'table'")
 	end
 
-	interger_pattern = interger_pattern:value()
+	local integer_pattern = IntegerPattern:value()
+	local float_pattern = FloatPattern:value()
 	local partial_rw_stats = types.newtable()
-	float_pattern = float_pattern:value()
+	local nil_type = types.singleton(nil)
 	local rw_stats = types.newtable()
 
 	for key, value in stats:properties() do
@@ -58,13 +55,13 @@ type function LeaderstatsCreator(
 				string.match(raw_value, float_pattern)
 			then
 				prop_value = types.number
-			elseif raw_value == "interger" or string.match(raw_value, interger_pattern) then
+			elseif raw_value == "integer" or string.match(raw_value, integer_pattern) then
 				-- CHANGE ME WHEN NOMINAL TYPES EXIST
 				prop_value = types.number
 			elseif raw_value == "string" or type(raw_value) == "string" then
 				prop_value = types.string
 			else
-				error(`value '{value}' for key '{key}' is not of type '"interger" | "string" | "float" | number | string'`)
+				error(`value '{value}' for key '{key}' is not of type '"integer" | "string" | "float" | number | string'`)
 			end
 		elseif 
 			-- using ~= for all these checks didn't work :(
@@ -85,12 +82,12 @@ type function LeaderstatsCreator(
 	})
 end
 
-export type Leaderstats<S = {}> = LeaderstatsCreator<S, "defaults", FloatPattern, IntergerPattern, Player, nil>
+export type Leaderstats<S = {}> = LeaderstatsCreator<S, Player>
 
 local PLAYER_TO_FOLDER = {} :: { [Player]: LeaderstatsFolder? }
 local STATS_TO_FOLDER = {} :: { [Stats]: LeaderstatsFolder }
 local LEADERSTATS_FOLDER_TEMPLATE = Instance.new("Folder")
-local INTERGER_PATTERN: IntergerPattern = "^i(%-?%d+)$"
+local INTEGER_PATTERN: IntegerPattern = "^i(%-?%d+)$"
 local FLOAT_PATTERN: FloatPattern = "^f(%-?%d+%.?%d*)$"
 local PLAYER_TO_STATS = {} :: { [Player]: Stats }
 local LEADERSTATS_FOLDER_NAME = "leaderstats"
@@ -107,8 +104,11 @@ local function STATS_TO_STRING(stats: Stats, indent: string, outer_indent: strin
 
 	for index, stat_name in STAT_NAMES do
 		local stat_instance = folder[stat_name]
-		local format = if stat_instance:IsA("StringValue") then "%* = '%*'" else "%* = %*"
-		LINES[index] = string.format(format, stat_name, stat_instance.Value)
+		
+		LINES[index] = if stat_instance:IsA("StringValue") then
+				`{stat_name} = '{stat_instance.Value}'`
+			else
+				`{stat_name} = {stat_instance.Value}`
 	end
 
 	local final = string.format(
@@ -218,22 +218,22 @@ local function create<S>(stats: S): Leaderstats<S>
 		local stat_amount = 0
 
 		for name, value in stats do
-			local interger_match = tonumber(string.match(value, INTERGER_PATTERN))
-			local float_match = if not interger_match then tonumber(string.match(value, FLOAT_PATTERN)) else nil
+			local integer_match = tonumber(string.match(value, INTEGER_PATTERN))
+			local float_match = if not integer_match then tonumber(string.match(value, FLOAT_PATTERN)) else nil
 			local stat_instance: ValueBase
 
 			if value == "string" then
 				stat_instance = Instance.new("StringValue")
 			elseif value == "float" then
 				stat_instance = Instance.new("NumberValue")
-			elseif value == "interger" then
+			elseif value == "integer" then
 				stat_instance = Instance.new("IntValue")
 			elseif type(value) == "number" then
 				stat_instance = Instance.new("NumberValue")
 				stat_instance.Value = value
-			elseif interger_match then
+			elseif integer_match then
 				stat_instance = Instance.new("IntValue")
-				stat_instance.Value = interger_match
+				stat_instance.Value = integer_match
 			elseif float_match then
 				stat_instance = Instance.new("NumberValue")
 				stat_instance.Value = float_match
