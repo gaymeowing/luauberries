@@ -27,9 +27,8 @@ type function LeaderstatsCreator(stats: type, player_type: type)
 
 	local integer_pattern = IntegerPattern:value()
 	local float_pattern = FloatPattern:value()
-	local partial_rw_stats = types.newtable()
-	local nil_type = types.singleton(nil)
-	local rw_stats = types.newtable()
+	local new_partial_stats = types.newtable()
+	local new_stats = types.newtable()
 
 	for key, value in stats:properties() do
 		if key:is("singleton") then
@@ -43,20 +42,18 @@ type function LeaderstatsCreator(stats: type, player_type: type)
 		end
 
 		value = value.read or value.write
-		local value_tag = value.tag
 		local prop_value = value
 
-		if value:is("singleton") then
+		if value.tag == "singleton" then
 			local raw_value = value:value()
 
 			if 
-				raw_value == "float" or 
+				raw_value == "float" or
+				raw_value == "integer" or
 				type(raw_value) == "number" or
-				string.match(raw_value, float_pattern)
+				string.match(raw_value, float_pattern) or
+				string.match(raw_value, integer_pattern)
 			then
-				prop_value = types.number
-			elseif raw_value == "integer" or string.match(raw_value, integer_pattern) then
-				-- CHANGE ME WHEN NOMINAL TYPES EXIST
 				prop_value = types.number
 			elseif raw_value == "string" or type(raw_value) == "string" then
 				prop_value = types.string
@@ -72,13 +69,13 @@ type function LeaderstatsCreator(stats: type, player_type: type)
 			error(`value '{value}' for key '{key}' is not of type 'string | number' or is a type union made up of 'string | number'`)
 		end
 
-		partial_rw_stats:setproperty(key, types.unionof(prop_value, nil_type))
-		rw_stats:setproperty(key, prop_value)
+		new_partial_stats:setproperty(key, types.optional(prop_value))
+		new_stats:setproperty(key, prop_value)
 	end
 
-	return types.newtable({}, { 
-		index = player_type, readresult = rw_stats, 
-		writeresult = partial_rw_stats 
+	return types.newtable(nil, { 
+		index = player_type, readresult = new_stats, 
+		writeresult = new_partial_stats
 	})
 end
 
@@ -213,47 +210,47 @@ end
 	Creates a new leaderstats object
 ]]
 local function create<S>(stats: S): Leaderstats<S>
-	if not LEADERSTATS_OBJECT then
-		LEADERSTATS_OBJECT = setmetatable({}, leaderstats)
-		local stat_amount = 0
-
-		for name, value in stats do
-			local integer_match = tonumber(string.match(value, INTEGER_PATTERN))
-			local float_match = if not integer_match then tonumber(string.match(value, FLOAT_PATTERN)) else nil
-			local stat_instance: ValueBase
-
-			if value == "string" then
-				stat_instance = Instance.new("StringValue")
-			elseif value == "float" then
-				stat_instance = Instance.new("NumberValue")
-			elseif value == "integer" then
-				stat_instance = Instance.new("IntValue")
-			elseif type(value) == "number" then
-				stat_instance = Instance.new("NumberValue")
-				stat_instance.Value = value
-			elseif integer_match then
-				stat_instance = Instance.new("IntValue")
-				stat_instance.Value = integer_match
-			elseif float_match then
-				stat_instance = Instance.new("NumberValue")
-				stat_instance.Value = float_match
-			else
-				stat_instance =  Instance.new("StringValue")
-				stat_instance.Value = value
-			end
-
-			stat_instance.Parent = LEADERSTATS_FOLDER_TEMPLATE
-			table.insert(STAT_NAMES, name)
-			stat_instance.Name = name
-			stat_amount += 1
-		end
-
-		FULL_LINES = table.create(Players.MaxPlayers) :: any
-		LINES = table.create(stat_amount) :: any
-		return LEADERSTATS_OBJECT :: any
-	else 
+	if LEADERSTATS_OBJECT then
 		error("[LEADERSTATS]: cannot have more than 1 leaderstats object")
 	end
+
+	LEADERSTATS_OBJECT = setmetatable({}, leaderstats)
+	local stat_amount = 0
+
+	for name, value in stats do
+		local integer_match = tonumber(string.match(value, INTEGER_PATTERN))
+		local float_match = not integer_match and tonumber(string.match(value, FLOAT_PATTERN))
+		local stat_instance: ValueBase
+
+		if value == "string" then
+			stat_instance = Instance.new("StringValue")
+		elseif value == "float" then
+			stat_instance = Instance.new("NumberValue")
+		elseif value == "integer" then
+			stat_instance = Instance.new("IntValue")
+		elseif type(value) == "number" then
+			stat_instance = Instance.new("NumberValue")
+			stat_instance.Value = value
+		elseif integer_match then
+			stat_instance = Instance.new("IntValue")
+			stat_instance.Value = integer_match
+		elseif float_match then
+			stat_instance = Instance.new("NumberValue")
+			stat_instance.Value = float_match
+		else
+			stat_instance =  Instance.new("StringValue")
+			stat_instance.Value = value
+		end
+
+		stat_instance.Parent = LEADERSTATS_FOLDER_TEMPLATE
+		table.insert(STAT_NAMES, name)
+		stat_instance.Name = name
+		stat_amount += 1
+	end
+
+	FULL_LINES = table.create(Players.MaxPlayers) :: any
+	LINES = table.create(stat_amount) :: any
+	return LEADERSTATS_OBJECT :: any
 end
 
 do
