@@ -24,15 +24,15 @@ local DIRQUEUE = {} :: { DirInfo }
 
 local function CREATE_MODULE_SCRIPT(name: string, source: string, p: roblox.Instance?): ModuleScript
 	local module = CREATE_INSTANCE("ModuleScript") :: ModuleScript
+	module.Name = string.gsub(name, "%-", "_")
 	module.Source = source
-	module.Name = name
 	module.Parent = p
 	return module
 end
 
 local function CREATE_FOLDER(name: string, p: roblox.Instance?): roblox.Instance
 	local folder = CREATE_INSTANCE("Folder")
-	folder.Name = name
+	folder.Name = string.gsub(name, "%-", "_")
 	folder.Parent = p
 	return folder
 end
@@ -66,7 +66,7 @@ end
 local function modulify(lib: string, path: string, ignore_cache: boolean?): ModuleScript
 	if not ignore_cache then
 		local module = CACHED_MODULES[lib]
-		
+
 		if module then
 			return module
 		end

@@ -63,7 +63,7 @@ local function COPY_LIB_FOR_RELEASE(lib: string, to: string)
 	REMOVE_FILE_IF_EXISTS(`{to}/test.luau`)
 	REMOVE_DIR_IF_EXISTS(`{to}/test`)
 
-	deep_iter_scripts(to, function(_, src, depth) 
+	deep_iter_scripts(to, function(_, src, depth)
 		depth -= 2
 		local depth_even_half = depth // 2
 		local hot_comments = {}
@@ -76,8 +76,8 @@ local function COPY_LIB_FOR_RELEASE(lib: string, to: string)
 				inner ..= string.rep("./", depth - (depth_even_half * 2))
 			end
 
-			return string.match(line, require_pattern.start) .. inner 
-				.. string.match(line, require_pattern.libs_alias) 
+			return string.match(line, require_pattern.start) .. inner
+				.. string.match(line, require_pattern.libs_alias)
 				.. string.match(line, require_pattern.ending)
 		end)
 		--[[
@@ -116,12 +116,12 @@ local function get_last_unreleased_commit_time(lib: string): number
 			get_commit_from_tag(last_tag)
 		else
 			string.match(
-				summon(`git log {GIT_LOG_HASHES_ARGS} libs/{lib}`), 
+				summon(`git log {GIT_LOG_HASHES_ARGS} libs/{lib}`),
 				"\n(%x*)$"
 			) :: string
 
 	return tonumber(string.match(
-		summon(`git show --pretty=format:%ad --date=unix {last_commit}`), 
+		summon(`git show --pretty=format:%ad --date=unix {last_commit}`),
 		"^(%d+)\n"
 	)) :: any
 end
@@ -149,7 +149,7 @@ pcall(fs.removeDir, DIST_DIR)
 fs.writeDir(DIST_DIR)
 
 do
-	
+
 	if process.args[1] == "all" then
 		LIBS_TO_RELEASE_FOR = read_dir("libs")
 	elseif #process.args ~= 0 then
@@ -224,10 +224,11 @@ for _, lib in LIBS_TO_RELEASE_FOR do
 		table.insert(notes, `* {title} by @{author_fix(author :: any)} in [{commit}]({BASE_COMMIT_URL}{commit})`)
 	end
 
+	local title = string.gsub(lib, "%-", " ")
 	local release_tag = `{lib}@{version}`
 	local upload_name = `{lib}-{version}`
 
-	summon(`gh release create {release_tag} --title "{lib} v{version}" --notes "{table.concat(notes, "\n")}" --draft`)
+	summon(`gh release create {release_tag} --title "{title} v{version}" --notes "{table.concat(notes, "\n")}" --draft`)
 	upload_to_release(release_tag, `{upload_name}.zip`, zipped)
 	upload_to_release(release_tag, `{upload_name}.rbxm`, rbxm)
 
