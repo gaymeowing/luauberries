@@ -111,14 +111,22 @@ end
 
 local function get_last_unreleased_commit_time(lib: string): number
 	local tags = summon(`git tag --sort=-creatordate -n {lib}@*`)
-	local last_tag = string.match(tags, "(%w+@.-)%s")
-	local last_commit = if last_tag then
-			get_commit_from_tag(last_tag)
+	local last_commit
+
+	if #tags ~= 0 then
+		local last_tag = string.match(tags, "([%w%-]+@.-)%s")
+
+		if last_tag then
+			last_commit = get_commit_from_tag(last_tag)
 		else
-			string.match(
+			last_commit = string.match(
 				summon(`git log {GIT_LOG_HASHES_ARGS} libs/{lib}`),
 				"\n(%x*)$"
 			) :: string
+		end
+	else
+		last_commit = summon(`git log --pretty=format:"%H" -n1 'libs/{lib}'`)
+	end
 
 	return tonumber(string.match(
 		summon(`git show --pretty=format:%ad --date=unix {last_commit}`),
