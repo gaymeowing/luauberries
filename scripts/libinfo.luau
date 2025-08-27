@@ -26,7 +26,7 @@ local CACHED_INFOS = {} :: { [string]: LibInfo }
 
 local function libinfo(lib: string): LibInfo
 	local cached = CACHED_INFOS[lib]
- 
+
 	if cached then
 		return cached
 	else
@@ -43,9 +43,13 @@ local function libinfo(lib: string): LibInfo
 				end
 			end
 
-			table.freeze(raw.runtime) 
+			table.freeze(raw.runtime)
 		else
-			error(`no runtime specified for lib {lib}`)
+			error(`no runtime specified for library '{lib}'`)
+		end
+
+		if not string.match(raw.version, "%d+%.%d+%.%d+[%a%-]*") then
+			error(`version is not vaild semver for library '{lib}'`)
 		end
 
 		CACHED_INFOS[lib] = table.freeze(raw) :: any
