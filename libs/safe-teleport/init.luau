@@ -140,7 +140,9 @@ function safe_teleport_mt.__call(safe_teleport, placeid, players_or_player, info
 			options.ServerInstanceId = info.jobid
 		end
 
-		options:SetTeleportData(info.data :: any)
+		if info.data then
+			options:SetTeleportData(info.data)
+		end
 		return TELEPORT(placeid, players, options)
 	else
 		return TELEPORT(placeid, players)
