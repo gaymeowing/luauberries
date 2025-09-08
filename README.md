@@ -2,6 +2,9 @@
 #### [![CI](https://github.com/gaymeowing/luauberries/actions/workflows/ci.yml/badge.svg)](https://github.com/gaymeowing/luauberries/actions/workflows/ci.yml)
 A collection of libraries for luau, lune, and roblox
 
+> [!NOTE]
+> Newsolver versions of libraries with better types can be found under the `newsolver` branch.
+
 ## Notable libraries:
 - [character](<https://libs.luau.lol/character>) - a simple utility module for getting more accurate character types with character added and character removing
 - [grouper](<https://libs.luau.lol/grouper>) - a module for getting accurate group ranks for players on the server, and detecting rank changes
