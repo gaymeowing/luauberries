@@ -43,7 +43,7 @@ function retryer.infinite_delay<A..., R...>(delay: number, f: (A...) -> (R...), 
 			success = results[1]
 		until success
 	end
-	return unpack(results, 2)
+	return table.unpack(results, 2)
 end
 
 function retryer.infinite_exponent<A..., R...>(
@@ -65,7 +65,7 @@ function retryer.infinite_exponent<A..., R...>(
 			attempts += 1
 		until success
 	end
-	return unpack(results, 2)
+	return table.unpack(results, 2)
 end
 
 function retryer.delay<A..., R...>(
@@ -87,7 +87,7 @@ function retryer.delay<A..., R...>(
 			attempts += 1
 		until success or attempts == max_attempts
 	end
-	return success, unpack(results, 2)
+	return success, table.unpack(results, 2)
 end
 
 function retryer.exponent<A..., R...>(
@@ -109,7 +109,7 @@ function retryer.exponent<A..., R...>(
 			attempts += 1
 		until success or attempts == max_attempts
 	end
-	return success, unpack(results, 2)
+	return success, table.unpack(results, 2)
 end
 
 function retryer.infinite<A..., R...>(f: (A...) -> (R...), ...: A...): R...
@@ -123,7 +123,7 @@ function retryer.infinite<A..., R...>(f: (A...) -> (R...), ...: A...): R...
 			success = results[1]
 		until success
 	end
-	return unpack(results, 2)
+	return table.unpack(results, 2)
 end
 
 return table.freeze(retryer)
