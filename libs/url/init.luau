@@ -9,7 +9,6 @@ export type SpaceEncoding = "+" | "%20"
 
 local FORMAT = string.format
 local GMATCH = string.gmatch
-local MATCH = string.match
 local GSUB = string.gsub
 
 local function CHAR_TO_CODE(char: string): string
