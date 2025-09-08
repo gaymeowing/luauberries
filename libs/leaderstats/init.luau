@@ -1,7 +1,7 @@
 
 --[[
 	leaderstats
-	roblox leaderstats wrapper providing a nicer api, compared to dealing with instances directly 
+	roblox leaderstats wrapper providing a nicer api, compared to dealing with instances directly
 ]]
 
 local RunService = game:GetService("RunService")
@@ -13,7 +13,7 @@ type AllowedDefaults = "float" | "string" | "integer" | AllowedValues
 
 type Stats = { [string]: AllowedValues }
 
-type LeaderstatsFolder =  Folder & { [string]: ValueBase & { Value: AllowedValues } }
+type LeaderstatsFolder =  Folder & { [string]: StringValue | NumberValue }
 
 -- this exists for no reason other than "well theres an integer pattern for having an integer with a number literal so why not for floats"
 type FloatPattern = "^f(%-?%d+%.?%d*)$"
@@ -47,7 +47,7 @@ type function LeaderstatsCreator(stats: type, player_type: type)
 		if value.tag == "singleton" then
 			local raw_value = value:value()
 
-			if 
+			if
 				raw_value == "float" or
 				raw_value == "integer" or
 				type(raw_value) == "number" or
@@ -60,10 +60,10 @@ type function LeaderstatsCreator(stats: type, player_type: type)
 			else
 				error(`value '{value}' for key '{key}' is not of type '"integer" | "string" | "float" | number | string'`)
 			end
-		elseif 
+		elseif
 			-- using ~= for all these checks didn't work :(
-			not (value == types.number or 
-			value == types.string or 
+			not (value == types.number or
+			value == types.string or
 			value.tag == "union")
 		then
 			error(`value '{value}' for key '{key}' is not of type 'string | number' or is a type union made up of 'string | number'`)
@@ -73,8 +73,8 @@ type function LeaderstatsCreator(stats: type, player_type: type)
 		new_stats:setproperty(key, prop_value)
 	end
 
-	return types.newtable(nil, { 
-		index = player_type, readresult = new_stats, 
+	return types.newtable(nil, {
+		index = player_type, readresult = new_stats,
 		writeresult = new_partial_stats
 	})
 end
@@ -101,7 +101,7 @@ local function STATS_TO_STRING(stats: Stats, indent: string, outer_indent: strin
 
 	for index, stat_name in STAT_NAMES do
 		local stat_instance = folder[stat_name]
-		
+
 		LINES[index] = if stat_instance:IsA("StringValue") then
 				`{stat_name} = '{stat_instance.Value}'`
 			else
@@ -137,7 +137,7 @@ local function GET_OR_CREATE_FOLDER(player: Player): LeaderstatsFolder
 		return folder :: any
 	else
 		local folder = player:FindFirstChild(LEADERSTATS_FOLDER_NAME) :: any
-		
+
 		if folder then
 			PLAYER_TO_FOLDER[player] = folder
 			return folder
@@ -145,7 +145,7 @@ local function GET_OR_CREATE_FOLDER(player: Player): LeaderstatsFolder
 			local new_folder = LEADERSTATS_FOLDER_TEMPLATE:Clone()
 			PLAYER_TO_FOLDER[player] = new_folder
 			new_folder.Parent = player
-			return new_folder 
+			return new_folder
 		end
 	end
 end
@@ -164,7 +164,7 @@ function stats.__tostring(stats: Stats): string
 end
 
 function leaderstats.__newindex(leaderstats: Leaderstats, player: Player, partial_stats: { [string]: AllowedValues? }?): Stats
-	if player and player:IsDescendantOf(game) then
+	if player and player.Parent == Players then
 		local folder = GET_OR_CREATE_FOLDER(player)
 
 		if partial_stats then
@@ -183,7 +183,7 @@ function leaderstats.__newindex(leaderstats: Leaderstats, player: Player, partia
 end
 
 function leaderstats.__index(leaderstats: Leaderstats, player: Player): Stats
-	if player and player:IsDescendantOf(game) then
+	if player and player.Parent == Players then
 		return GET_OR_CREATE_STATS(player, GET_OR_CREATE_FOLDER(player))
 	else
 		error(`[LEADERSTATS]: cannot set key '{player}', as key is not of type 'Player'`)
@@ -257,7 +257,7 @@ do
 
 	--[[
 		this is to fix the edge case where the folder is created on the client,
-		when its going to be created on the server but like just hasnt yet
+		when its going to be created on the server but like just hasn't yet
 	--]]
 	if RunService:IsClient() then
 		Players.DescendantAdded:Connect(function(instance)
@@ -273,7 +273,7 @@ do
 			end
 		end)
 	end
-	
+
 	Players.PlayerRemoving:Connect(function(player)
 		local stats = PLAYER_TO_STATS[player]
 
