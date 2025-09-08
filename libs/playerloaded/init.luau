@@ -2,8 +2,8 @@
 --[[
 	player loaded
 	handles callbacks for a player loaded remote, because having a player loaded remote
-	is a good idea so you don't fill up the remote queue for a player 
-	before they've been able to recive remote events
+	is a good idea so you don't fill up the remote queue for a player
+	before they've been able to receive remote events
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -32,7 +32,7 @@ local function SWAP_REMOVE<V>(t: { V }, v: V)
 		else
 			t[1] = nil
 		end
-	end	
+	end
 end
 
 local function CREATE_DISCONNECT<V>(t:{ V }, v: V): () -> ()
@@ -105,7 +105,7 @@ do
 
 		if threads then
 			THREADS_WAITING_FOR_PLAYERS[player] = nil
-			
+
 			for _, thread in threads do
 				task.defer(thread, player)
 			end
@@ -161,7 +161,7 @@ do
 			if not game:IsLoaded() then
 				game.Loaded:Wait()
 			end
-			
+
 			remote:FireServer()
 			run_for_player(Players.LocalPlayer)
 		end)
