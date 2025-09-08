@@ -61,7 +61,7 @@ end
 
 local function GET_IDS_OWNED(player: Player): { [number]: true? }?
 	local info = GET_INFO(player)
-	
+
 	if info then
 		if info.amount_checked == TOTAL_IDS then
 			return info.owned
@@ -85,7 +85,7 @@ local badger_mt = {}
 --[[
 	Gets or creates a badge symbol for the given Id.
 
-	WARNING: Badge symbols will not be gc'd, but why would you need them to gc anyways... 
+	WARNING: Badge symbols will not be gc'd, but why would you need them to gc anyways...
 ]]
 function badger_mt.__call<S>(self: S, id: number): Badge
 	local badge_for_id = ID_TO_BADGE[id]
@@ -97,7 +97,7 @@ function badger_mt.__call<S>(self: S, id: number): Badge
 
 		local badge = table.freeze({
 			index = TOTAL_IDS,
-			id = id 
+			id = id
 		})
 
 		ID_TO_BADGE[id] = badge
@@ -127,11 +127,11 @@ end
 ]]
 function badger.award(player: Player, badge: Badge): boolean
 	local info = GET_INFO(player)
-	
+
 	if info then
 		local success = AWARD(BadgeService, player.UserId, badge.id)
 		info = PLAYER_INFOS[player]
-			
+
 		if success and info then
 			info.owned[badge.id] = true
 		end
@@ -158,7 +158,7 @@ function badger.has(player: Player, badge: Badge): boolean
 		else
 			local waitlists = info.threads_waiting_for_id
 			local threads = waitlists[id]
-	
+
 			if threads then
 				table.insert(threads, coroutine.running())
 			else
@@ -182,7 +182,7 @@ function badger.get_badges(player: Player): { [Badge]: true? }?
 		local badges: any = table.clone(ids_owned)
 
 		for id in ids_owned do
-			badges[ID_TO_BADGE[id]] = true 
+			badges[ID_TO_BADGE[id]] = true
 		end
 		return badges
 	else
@@ -220,7 +220,9 @@ do
 					if threads_waiting then
 						bulk_defer_threads(threads_waiting, is_awarded)
 						threads_waiting_for_id[id] = nil
-					elseif is_awarded then
+					end
+
+					if is_awarded then
 						owned[id] = true
 					end
 				end
@@ -280,12 +282,12 @@ do
 			local check_start = amount_checked + 1
 
 			--[[
-				1: the thread isnt doing work to fetch info
-				2: the thread hasnt successfully fetched if the player owns every badge
+				1: the thread isn't doing work to fetch info
+				2: the thread hasn't successfully fetched if the player owns every badge
 				3: it must be 12 seconds since the previous fetch started
 			--]]
-			if 
-				not info.running and 
+			if
+				not info.running and
 				amount_checked ~= TOTAL_IDS and
 				os.clock() - info.start >= FETCH_DELAY
 			then
@@ -301,7 +303,7 @@ do
 			end
 		end
 	end)
-	
+
 	table.freeze(badger_mt)
 	table.freeze(badger)
 
