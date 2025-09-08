@@ -27,19 +27,19 @@ type function CustomFieldsFunc(t, max_len)
 			local value = values.write or values.read
 			local value_tag = value.tag
 
-			if 
-				value_tag ~= "number" or 
-				value_tag ~= "string" or 
-				((value_tag == "singleton") and (type(value:value()) ~= "string")) 
+			if
+				value_tag ~= "number" or
+				value_tag ~= "string" or
+				((value_tag == "singleton") and (type(value:value()) ~= "string"))
 			then
 				error("value must be of type 'string' or 'number'")
 			end
 
 			local key_tag = key.tag
 
-			if 
-				key_tag ~= "string" or 
-				(key_tag == "singleton" and (type(key:value()) ~= "string")) 
+			if
+				key_tag ~= "string" or
+				(key_tag == "singleton" and (type(key:value()) ~= "string"))
 			then
 				error("key must be of type 'string'")
 			end
@@ -72,20 +72,20 @@ type function CustomEventMethods(eventsinfo, player, max_len, mt, class)
 
 					for key, type_or_enum in properties do
 						len += 1
-	
+
 						if len > max_len then
 							error(`cannot have more than {max_len} fields in custom fields for event '{name:value()}'`)
 						end
-	
-						local info_value 
-	
+
+						local info_value
+
 						type_or_enum = type_or_enum.write or type_or_enum.read
-	
+
 						if type_or_enum:is("union") then
 							info_value = type_or_enum
 						elseif type_or_enum:is("singleton") then
 							local type = type_or_enum:value()
-	
+
 							if type == "number" then
 								info_value = types.number
 							elseif type == "string" then
@@ -95,10 +95,10 @@ type function CustomEventMethods(eventsinfo, player, max_len, mt, class)
 
 						real_info:setreadproperty(key, info_value)
 					end
-	
+
 					custom_event_methods:setreadproperty(name, types.newfunction({
-						head = { 
-							class, player, 
+						head = {
+							class, player,
 							types.newtable({
 								[value_singleton] = opt_number,
 								[fields_singleton] = types.unionof(real_info, nil_type)
@@ -112,7 +112,7 @@ type function CustomEventMethods(eventsinfo, player, max_len, mt, class)
 				}, {}))
 			end
 		end
-		
+
 		return custom_event_methods
 	else
 		error(`type '{eventsinfo.tag}' is not of type 'CustomEventsInfo'`)
@@ -218,7 +218,7 @@ local function INFO_TO_CUSTOM_FIELDS<T>(info: BaseAnalyticsInfo<T>): ConvertedCu
 end
 
 --[[
-	Logs an event used to track user actions stepping through an onboarding funnel. 
+	Logs an event used to track user actions stepping through an onboarding funnel.
 	Funnel breakdowns will only consider the user and event values from the first step in a funnel session.
 ]]
 local function onboarding_funnel_step<T>(player: Player, info: AnalyticsOnboardingFunnelStepInfo<T>)
@@ -228,7 +228,7 @@ local function onboarding_funnel_step<T>(player: Player, info: AnalyticsOnboardi
 end
 
 --[[
-	Logs an event for when a user has started, completed, or failed a level attempt. 
+	Logs an event for when a user has started, completed, or failed a level attempt.
 ]]
 local function progression<T>(player: Player, info: AnalyticsProgressionInfo<T>)
 	AnalyticsService:LogProgressionEvent(
@@ -238,18 +238,18 @@ local function progression<T>(player: Player, info: AnalyticsProgressionInfo<T>)
 end
 
 --[[
-	Logs an event used to track user actions stepping through a pre-planned funnel. 
+	Logs an event used to track user actions stepping through a pre-planned funnel.
 	Funnel breakdowns will only consider the user and event values from the first step in a funnel session.
 ]]
 local function funnel_step<T>(player: Player, info: AnalyticsFunnelStepInfo<T>)
 	AnalyticsService:LogFunnelStepEvent(
-		player, info.funnel_name, info.sessionid, info.step, 
+		player, info.funnel_name, info.sessionid, info.step,
 		info.step_name, INFO_TO_CUSTOM_FIELDS(info)
 	)
 end
 
 --[[
-	Logs an event used to track custom metrics of a user in experience. 
+	Logs an event used to track custom metrics of a user in experience.
 	For additional information, see [Custom Events](https://create.roblox.com/docs/production/analytics/custom-events).
 ]]
 local function custom<T>(player: Player, info: AnalyticsCustomEventInfo<T>)
@@ -263,7 +263,7 @@ end
 ]]
 local function economy<T>(player: Player, info: AnalyticsEconomyInfo<T>)
 	AnalyticsService:LogEconomyEvent(
-		player, info.flow_type, info.currency_type, info.amount, info.ending_balance, 
+		player, info.flow_type, info.currency_type, info.amount, info.ending_balance,
 		info.transaction_type :: any, info.item_sku, INFO_TO_CUSTOM_FIELDS(info)
 	)
 end
@@ -287,14 +287,19 @@ function logger.economy(logger, player, info)
 	economy(player, info)
 end
 
-local loganalytics_mt = {}
+local loganalytics = {
+	onboarding_funnel_step = onboarding_funnel_step,
+	funnel_step = funnel_step,
+	progression = progression,
+	economy = economy,
+	custom = custom,
+}
 
 --[[
 	Creates a custom logger with methods added for custom_events described in the `custom_events` table.
 	Custom event methods are fully typed, and allow for strictly defining what can be put in as custom fields.
 ]]
-function loganalytics_mt.__call<S, E>(
-	self: S, 
+function loganalytics.logger<E>(
 	custom_events: E & CustomEventsInfo
 ): Logger & CustomEventMethods<E, Player, MAX_CUSTOM_FIELDS, LoggerPrototype, Logger>
 	local custom_event_methods = {}
@@ -314,13 +319,6 @@ function loganalytics_mt.__call<S, E>(
 	return table.freeze(setmetatable(custom_event_methods, logger)) :: any
 end
 
-table.freeze(loganalytics_mt)
 table.freeze(logger)
 
-return table.freeze(setmetatable({
-	onboarding_funnel_step = onboarding_funnel_step,
-	funnel_step = funnel_step,
-	progression = progression,
-	economy = economy,
-	custom = custom,
-}, loganalytics_mt))
+return table.freeze(loganalytics)
