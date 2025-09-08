@@ -603,6 +603,9 @@ function stack_tree.mark_node_taken(tree: Tree, node: Node)
 	end
 end
 
+--[[
+	Tells if the tree has every single node taken
+]]
 function stack_tree.is_full(tree: Tree): boolean
 	return tree.current_stock == tree.max_stock
 end
