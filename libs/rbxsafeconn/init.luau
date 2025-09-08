@@ -14,7 +14,7 @@ local rbx_event = {}
 
 -- uses a generic so u can cast instance in the callback to any instance,
 -- as generally u know what instance a tag takes in, and the callback would probably error anyways
--- if it didnt take in that specific instance
+-- if it didn't take in that specific instance
 function rbx_event.tag_added<I>(tag: string, f: (instance: I & Instance) -> ()): () -> ()
 	local conn = CollectionService:GetInstanceAddedSignal(tag):Connect(f :: any)
 

@@ -1,27 +1,27 @@
 
 --[[
 	rbxthumb
-	module for easily creating roblox thumbnail urls, based on nevermores rbxthumbutil
+	module for easily creating roblox thumbnail urls, based on Nevermore's rbxthumbutil
 	although with types
 ]]
 
 type PlayerThumbnailFormatter<S> = (player: Player, size: S?, circular: boolean?) -> Content
 type ThumbnailFormatter<S> = (id: number, size: S?, circular: boolean?) -> Content
 
-export type ThumbnailType = "Asset" | "Avatar" | "AvatarHeadShot" | "BadgeIcon"  | 
-	"BundleThumbnail" | "GameIcon" | "GamePass" | "GroupIcon" | "Outfit" | "FontFamily" | 
+export type ThumbnailType = "Asset" | "Avatar" | "AvatarHeadShot" | "BadgeIcon"  |
+	"BundleThumbnail" | "GameIcon" | "GamePass" | "GroupIcon" | "Outfit" | "FontFamily" |
 	"AvatarBust"
 
-export type ThumbnailSize = "1200×80" | "720x720" | "420x420" |"352x352" | "150x150" | 
+export type ThumbnailSize = "1200×80" | "720x720" | "420x420" |"352x352" | "150x150" |
 	"100x100" | "60x60" | "50x50" | "48x48" | "180x180"
 
 type AvatarHeadshotThumbnailSize = "48×48" | "60×60" | "100×100" | "150×150" | "180×180" |
 	"352×352" | "420×420"
 
-type AvatarBustThumbnailSize = "100x100" | "150x15" | "75×75" | "100×100" | "150×150" | "180×180" | 
+type AvatarBustThumbnailSize = "100x100" | "150x15" | "75×75" | "100×100" | "150×150" | "180×180" |
 	"352×352" | "420×420"
 
-type FullAvatarThumbnailSize = "50×50" | "60×60" | "75×75" | "100×100" | "150×150" | "180×180" | 
+type FullAvatarThumbnailSize = "50×50" | "60×60" | "75×75" | "100×100" | "150×150" | "180×180" |
 	"352×352" | "420×420"
 
 local BASE_URI = "rbxthumb://type=%*&id=%*&w=%*&h=%*"
@@ -65,7 +65,7 @@ local function SPLIT_SIZE(
 end
 
 local function FORMAT_RBXTHUMB_URL(
-	id: number, 
+	id: number,
 	type: ThumbnailType,
 	size: ThumbnailSize?,
 	circular: boolean?
@@ -121,13 +121,13 @@ local rbxthumb = {
 
 function rbxthumb.avatar_item(
 	avatar_item_type: Enum.AvatarItemType,
-	id: number, 
+	id: number,
 	size: ("150x150" | "420x420")?,
 	circular: boolean?
 ): Content
 	return if avatar_item_type == ASSET_ENUM then
 		FORMAT_RBXTHUMB_URL(id, ASSET_STR :: any, size, circular)
-	else 
+	else
 		FORMAT_RBXTHUMB_URL(id, BUNDLE_STR :: any, size, circular)
 end
 

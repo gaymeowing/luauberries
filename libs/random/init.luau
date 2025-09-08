@@ -2,7 +2,7 @@
 
 --[[
 	random
-	pure luau functional equivalent to robloxs random class
+	pure luau functional equivalent to Roblox's random class
 ]]
 
 type SetState<V> = (v: V) -> ()
@@ -149,7 +149,7 @@ local function INTEGER<S>(
 	set_state: SetState<S>, min: number, max: number, state: S
 ): number
 	set_state(state)
-	-- if math.random isnt wrapped here it wont inline 
+	-- if math.random isnt wrapped here it wont inline
 	return (math.random(min, max))
 end
 
@@ -255,7 +255,7 @@ function random.get_seed()
 end
 
 do
-	
+
 	random_prototype.__index = random_prototype
 	table.freeze(random_prototype)
 	table.freeze(random)

@@ -52,7 +52,7 @@ local function myers_32(a: string, b: string, a_len: number, b_len: number): num
 	for j, a_byte in a_bytes do
 		PEQ[a_byte] = OR(PEQ[a_byte], LSHIFT(1, j))
 	end
-	
+
 	for i, byte in b_bytes do
 		local eq = PEQ[byte]
 		local xv = OR(eq, mv)
@@ -108,7 +108,7 @@ local function myers_x(b: string, a: string, a_len: number, b_len: number): numb
 		for index, byte in a_bytes do
 			local index_32floor = (index // 32) + 1
 			local index_32modulo = index % 32
-		
+
 			local phc_value = phc[index_32floor]
 			local mhc_value = mhc[index_32floor]
 			local eq = PEQ[byte]
@@ -124,13 +124,13 @@ local function myers_x(b: string, a: string, a_len: number, b_len: number): numb
 			if XOR(RSHIFT(mh, 31), mb) == 1 then
 				mhc[index_32floor] = XOR(mhc_value, LSHIFT(1, index_32modulo))
 			end
-			
+
 			pv = OR(
-				OR(LSHIFT(mh, 1), mb), 
+				OR(LSHIFT(mh, 1), mb),
 				NOT(OR(xv, ph))
 			)
 			mv = AND(
-				OR(LSHIFT(ph, 1), pb), 
+				OR(LSHIFT(ph, 1), pb),
 				xv
 			)
 		end
@@ -157,7 +157,7 @@ local function myers_x(b: string, a: string, a_len: number, b_len: number): numb
 	for index, byte in a_bytes do
 		local index_32floor = (index // 32) + 1
 		local index_32modulo = index % 32
-	
+
 		local phc_value = phc[index_32floor]
 		local mhc_value = mhc[index_32floor]
 		local eq = PEQ[byte]
@@ -177,13 +177,13 @@ local function myers_x(b: string, a: string, a_len: number, b_len: number): numb
 		if XOR(RSHIFT(mh, 31), mb) == 1 then
 			mhc[index_32floor] = XOR(mhc_value, LSHIFT(1, index_32modulo))
 		end
-		
+
 		pv = OR(
-			OR(LSHIFT(mh, 1), mb), 
+			OR(LSHIFT(mh, 1), mb),
 			NOT(OR(xv, ph))
 		)
 		mv = AND(
-			OR(LSHIFT(ph, 1), pb), 
+			OR(LSHIFT(ph, 1), pb),
 			xv
 		)
 	end
@@ -228,7 +228,7 @@ local leventine = {
 }
 
 --[[
-	Gives a copy of `t` sorted based on highest to lowest score when scored aginst `s`
+	Gives a copy of `t` sorted based on highest to lowest score when scored against `s`
 
 	```luau
 	local mapped = leventine.map("meow", { "mrrp", "mrow", "miaow" })
@@ -247,7 +247,7 @@ function leventine.map(s: string, t: { string }, info: MapInfo?): { string }
 			mapped[index] = { score, ts } :: any
 		end
 	end
-	
+
 	SORT(mapped, function(a, b)
 		return a[1] < b[1]
 	end)
@@ -261,7 +261,7 @@ end
 
 --[[
 	Checks if `a` is a subsequence of `b`
-	
+
 	```luau
 	local has_match = leventine.has_match("meow", "mrrp")
 	print(has_match) --> false
@@ -271,7 +271,7 @@ function leventine.has_match(a: string, b: string, case_sensitive: boolean?): bo
 	local a, b = APPLY_CASE_SENSITIVITY(case_sensitive, a, b)
 	local char_index: number? = 1
 
-	for _, character in SPLIT(b) do 
+	for _, character in SPLIT(b) do
 		char_index = FIND(a, character, char_index, true)
 
 		if char_index then

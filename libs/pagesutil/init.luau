@@ -1,7 +1,7 @@
 
 --[[
 	pagesutil
-	utility for dealing with roblox page instancs easily
+	utility for dealing with roblox page instances easily
 ]]
 
 export type PageInfo = {
@@ -41,17 +41,17 @@ function pagesutil.iter(
 			-- because it didnt correctly set IsFinished to true when the hashmap had litterally 0 entries in it
 			-- so its like litterally impossible for there to be another page
 			local success, err = pcall(advance_to_next_page, pages)
-			
+
 			if success then
 				local page = pages:GetCurrentPage()
 				page_info.page_len = #page
 				page_info.item_index = 0
 				page_info.page += 1
-	
+
 				for item_index, item in page do
 					page_info.item_index += 1
 					local result = f(page_info, item)
-		
+
 					if result == "break" then
 						return
 					end

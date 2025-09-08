@@ -2,12 +2,12 @@
 --[[
 	task
 	a good enough pure luau version of roblox's task lib
-	that doesnt require wrapping ur whole script in a
+	that doesn't require wrapping ur whole script in a
 	task.spawn or anything
 ]]
 
 local function SPAWN<A..., R...>(
-	thread_or_func: thread | (A...) -> R..., 
+	thread_or_func: thread | (A...) -> R...,
 	...: A...
 ): thread
 	if type(thread_or_func) == "thread" then
@@ -47,12 +47,12 @@ end
 
 function task.delay<A..., R...>(
 	seconds: number,
-	thread_or_func: thread | (A...) -> R..., 
+	thread_or_func: thread | (A...) -> R...,
 	...: A...
 ): thread
 	return SPAWN(function(
 		seconds: number,
-		thread_or_func: thread | (A...) -> R..., 
+		thread_or_func: thread | (A...) -> R...,
 		...: A...
 	)
 		WAIT(seconds)
