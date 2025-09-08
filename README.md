@@ -3,7 +3,7 @@
 A collection of libraries for luau, lune, and roblox
 
 > [!NOTE]
-> Newsolver versions of libraries with better types can be found under the `newsolver` branch.
+> Newsolver versions of libraries with better types can be found under the [`newsolver`](https://github.com/gaymeowing/luauberries/tree/newsolver) branch.
 
 ## Notable libraries:
 - [character](<https://libs.luau.lol/character>) - a simple utility module for getting more accurate character types with character added and character removing
