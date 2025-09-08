@@ -10,13 +10,39 @@ local Players = game:GetService("Players")
 
 export type Character = Model & {
     Humanoid: Humanoid & {
-        HumanoidDescription: HumanoidDescription,
+        HumanoidDescription: HumanoidDescription & {
+			[string]: (AccessoryDescription | BodyPartDescription)?,
+		},
         Animator: Animator,
     },
     HumanoidRootPart: BasePart,
     BodyColors: BodyColors,
 	PrimaryPart: BasePart,
-    Animate: LocalScript,
+    Animate: LocalScript & {
+		ScaleDampeningPercent: NumberValue,
+		PlayEmote: BindableEvent,
+		cheer: StringValue,
+		climb: StringValue,
+		dance: StringValue,
+		dance2: StringValue,
+		dance3: StringValue,
+		fall: StringValue,
+		idle: StringValue,
+		jump: StringValue,
+		laugh: StringValue,
+		mood: StringValue,
+		point: StringValue,
+		pose: StringValue,
+		run: StringValue,
+		sit: StringValue,
+		swim: StringValue,
+		swimidle: StringValue,
+		toollunge: StringValue,
+		toolnone: StringValue,
+		toolslash: StringValue,
+		walk: StringValue,
+		wave: StringValue,
+	},
     Head: BasePart,
 }
 
@@ -27,13 +53,16 @@ local function GET_APPEARANCE_LOADED(player: Player): Character?
 	return CHARACTER_APPEARANCE_LOADED[player]
 end
 
--- this function exists so u dont have to do
+-- this function exists so u don't have to do
 -- local character = (player.Character :: any) :: character.Character?
 local function GET(player: Player): Character?
 	return player.Character :: any
 end
 
-local character = {}
+local character = {
+	GET_APPEARANCE_LOADED = GET_APPEARANCE_LOADED,
+	get = GET,
+}
 
 function character.removing_once(player: Player, f: (character: Character) -> ()): () -> ()
 	local removing_conn = player.CharacterRemoving:Once(f :: any)
@@ -183,7 +212,7 @@ character.get_appearance_loaded = GET_APPEARANCE_LOADED
 character.get = GET
 
 do
-	
+
 	local function on_player_added(player: Player)
 		player.CharacterAppearanceLoaded:Connect(function(character: any)
 			CHARACTER_APPEARANCE_LOADED[player] = character
