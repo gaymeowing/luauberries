@@ -1,25 +1,7 @@
 {
-	// luau-lsp
-	"luau-lsp.completion.imports.requireStyle": "alwaysRelative",
 	"luau-lsp.completion.autocompleteEnd": true,
 	"luau-lsp.require.mode": "relativeToFile",
 	"luau-lsp.bytecode.vectorType": "vector",
-	"luau-lsp.completion.imports.ignoreGlobs": [
-		"**/node_modules/**/**/**",
-		"**/output/**",
-	],
-	"luau-lsp.ignoreGlobs": [
-		"**/node_modules/**",
-		"*.lua"
-	],
-
-	// vscode
 	"explorer.sortOrderLexicographicOptions": "upper",
 	"explorer.sortOrder": "foldersNestsFiles",
-	"search.exclude": {
-		"**/node_modules/**": true,
-		"**/libs_copy/**": true,
-	},
-	"git.postCommitCommand": "sync",
-	"git.rememberPostCommitCommand": true,
 }
