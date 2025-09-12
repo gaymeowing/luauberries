@@ -1,8 +1,8 @@
 --!native
 
 --[[
-	retryer
-	utility module for retrying functions easily
+	Retryer
+	Utility for retrying functions easily
 ]]
 
 local cross = require("@libs/cross")
@@ -11,8 +11,15 @@ local WAIT = cross.wait
 
 local retryer = {}
 
-function retryer.create<A..., R...>(
-	max_attempts: number,
+--[[
+	Retries the function with the given arguments `...` using [pcall](https://luau.org/library#global-functions)
+	until it no-longer errors, or if `max_retries` has been hit.
+
+	If the function succeeds, returns true and the results of the function.
+	If the function still raises an error after `max_retries` was hit, returns false and the error string.
+]]
+function retryer.retry<A..., R...>(
+	max_retries: number,
 	f: (A...) -> (R...),
 	...: A...
 ): (boolean, R...)
@@ -27,11 +34,18 @@ function retryer.create<A..., R...>(
 			results = { pcall(f, ...) }
 			success = results[1]
 			attempts += 1
-		until success or attempts == max_attempts
+		until success or attempts == max_retries
 	end
 	return success, table.unpack(results, 2)
 end
 
+--[[
+	Retries the function with the given arguments `...` using [pcall](https://luau.org/library#global-functions)
+	until it no-longer errors indefinitely.
+	With a `delay` between retries.
+
+	Returns the results of the function.
+]]
 function retryer.infinite_delay<A..., R...>(delay: number, f: (A...) -> (R...), ...: A...): R...
 	local results: { any } = { pcall(f, ...) }
 	local success = results[1]
@@ -46,6 +60,13 @@ function retryer.infinite_delay<A..., R...>(delay: number, f: (A...) -> (R...), 
 	return table.unpack(results, 2)
 end
 
+--[[
+	Retries the function with the given arguments `...` using [pcall](https://luau.org/library#global-functions)
+	until it no-longer errors, or if `max_retries` has been hit.
+	With a `delay` between retries that exponentially increases by `delay_exponent` each retry.
+
+	Returns the results of the function.
+]]
 function retryer.infinite_exponent<A..., R...>(
 	delay: number,
 	delay_exponent: number,
@@ -68,9 +89,17 @@ function retryer.infinite_exponent<A..., R...>(
 	return table.unpack(results, 2)
 end
 
+--[[
+	Retries the function with the given arguments `...` using [pcall](https://luau.org/library#global-functions)
+	until it no-longer errors, or if `max_retries` has been hit.
+	With a `delay` between retries.
+
+	If the function succeeds, returns true and the results of the function.
+	If the function still raises an error after `max_retries` was hit, returns false and the error string.
+]]
 function retryer.delay<A..., R...>(
 	delay: number,
-	max_attempts: number,
+	max_retries: number,
 	f: (A...) -> (R...),
 	...: A...
 ): (boolean, R...)
@@ -85,15 +114,23 @@ function retryer.delay<A..., R...>(
 			results = { pcall(f, ...) }
 			success = results[1]
 			attempts += 1
-		until success or attempts == max_attempts
+		until success or attempts == max_retries
 	end
 	return success, table.unpack(results, 2)
 end
 
+--[[
+	Retries the function with the given arguments `...` using [pcall](https://luau.org/library#global-functions)
+	until it no-longer errors, or if `max_retries` has been hit.
+	With a `delay` between retries that exponentially increases by `delay_exponent` each retry.
+
+	If the function succeeds, returns true and the results of the function.
+	If the function still raises an error after `max_retries` was hit, returns false and the error string.
+]]
 function retryer.exponent<A..., R...>(
 	delay: number,
 	delay_exponent: number,
-	max_attempts: number,
+	max_retries: number,
 	f: (A...) -> (R...), ...: A...
 ): (boolean, R...)
 	local results: { any } = { pcall(f, ...) }
@@ -107,11 +144,17 @@ function retryer.exponent<A..., R...>(
 			results = { pcall(f, ...) }
 			success = results[1]
 			attempts += 1
-		until success or attempts == max_attempts
+		until success or attempts == max_retries
 	end
 	return success, table.unpack(results, 2)
 end
 
+--[[
+	Retries the function with the given arguments `...` using [pcall](https://luau.org/library#global-functions)
+	until it no-longer errors indefinitely.
+
+	Returns the results of the function.
+]]
 function retryer.infinite<A..., R...>(f: (A...) -> (R...), ...: A...): R...
 	local results: { any } = { pcall(f, ...) }
 	local success = results[1]
