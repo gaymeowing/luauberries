@@ -181,13 +181,19 @@ for _, lib in LIBS_TO_RELEASE_FOR do
 end
 
 for _, lib in LIBS_TO_RELEASE_FOR do
+	local version = libinfo(lib).version
+	local release_tag = `{lib}@{version}`
+
+	if summon(`gh release view {release_tag}`) ~= "release not found" then
+		continue
+	end
+
 	local last_commit_time = get_last_unreleased_commit_time(lib)
 	local commits = reverse(get_unreleased_commits(lib, last_commit_time))
 	local copy_path = `{RELEASE_DIR}/{lib}`
 	local module =  modulify(lib, copy_path)
 	local rbxm = roblox.serializeModel({ module })
 	local notes = { "## Whats changed\n" }
-	local version = libinfo(lib).version
 	local depinfo = depgraph[lib]
 	local zipped_with_deps: any
 	local rbxm_with_deps: any
@@ -233,7 +239,6 @@ for _, lib in LIBS_TO_RELEASE_FOR do
 	end
 
 	local title = string.gsub(lib, "%-", " ")
-	local release_tag = `{lib}@{version}`
 	local upload_name = `{lib}-{version}`
 
 	summon(`gh release create {release_tag} --title "{title} v{version}" --notes "{table.concat(notes, "\n")}" --draft`)
