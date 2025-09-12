@@ -6,7 +6,6 @@
 	"luau-lsp.bytecode.vectorType": "vector",
 	"luau-lsp.completion.imports.ignoreGlobs": [
 		"**/node_modules/**/**/**",
-		"**/darklua_output/**",
 		"**/output/**",
 	],
 	"luau-lsp.ignoreGlobs": [
@@ -18,19 +17,9 @@
 	"explorer.sortOrderLexicographicOptions": "upper",
 	"explorer.sortOrder": "foldersNestsFiles",
 	"search.exclude": {
-		"**/darklua_output/**": true,
 		"**/node_modules/**": true,
 		"**/libs_copy/**": true,
 	},
-	/** 
-	this is set to sync, because it makes my life easier
-	as i dont have to do more w getting a diff for test running
-	and auto generating releases, blah blah blah
-
-	ok just don't change this,
-	because it'll make u end up having to do extra work
-	and thats lame, esp when it'll otherwise be done automatically 
-	**/ 
 	"git.postCommitCommand": "sync",
 	"git.rememberPostCommitCommand": true,
 }
