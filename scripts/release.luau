@@ -184,7 +184,8 @@ for _, lib in LIBS_TO_RELEASE_FOR do
 	local version = libinfo(lib).version
 	local release_tag = `{lib}@{version}`
 
-	if summon(`gh release view {release_tag}`) ~= "release not found" then
+	-- making sure theres not already a release for this library
+	if not summon(`gh release view {release_tag}`, nil, true) then
 		continue
 	end
 
