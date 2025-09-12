@@ -21,22 +21,8 @@ on:
       - "libs/**"
 
 jobs:
-  Main:    
-    runs-on: ${{ matrix.runner-os }}
-    name: ${{ matrix.name }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Windows
-            runner-os: windows-latest
-  
-          - name: Linux
-            runner-os: ubuntu-latest
-  
-          - name: macOS
-            runner-os: macos-14
-        
+  Main:
+    runs-on: ubuntu-latest
     steps:
       - uses: CompeyDev/setup-rokit@v0.1.0
       - uses: actions/checkout@v4
