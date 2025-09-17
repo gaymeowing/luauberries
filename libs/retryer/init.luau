@@ -131,7 +131,8 @@ function retryer.exponent<A..., R...>(
 	delay: number,
 	delay_exponent: number,
 	max_retries: number,
-	f: (A...) -> (R...), ...: A...
+	f: (A...) -> (R...),
+	...: A...
 ): (boolean, R...)
 	local results: { any } = { pcall(f, ...) }
 	local success = results[1]
