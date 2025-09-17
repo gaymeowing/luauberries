@@ -1,8 +1,9 @@
 
 --[[
 	safe teleport
-	modified version of Roblox's safe teleport function on the docs for TeleportAsync with types
-	and api improvements
+	wrapper for TeleportService:TeleportAsync() with automatic retries, and a better typed api
+	based on the SafeTeleport example function on Roblox's docs:
+	https://create.roblox.com/docs/projects/teleport#handle-failed-teleports
 ]]
 
 local TeleportService = game:GetService("TeleportService")
@@ -13,19 +14,37 @@ type BaseTeleportDataValue = string | buffer | Vector2 | vector | Vector3int16 |
 
 type TeleportDataValue = BaseTeleportDataValue | number
 
+--[[
+	Structure of Data to be passed to the destination with the player(s).
+
+	[Learn More](https://create.roblox.com/docs/projects/teleport#send-user-data-along-with-teleports)
+]]
 export type TeleportData =
 	| { [BaseTeleportDataValue]: TeleportData | TeleportDataValue }
 	| { [number]: TeleportData | TeleportDataValue }
 
+--[[
+	Returned information by Safe Teleport if `TeleportInfo` was passed to Safe Teleport.
+]]
 export type TeleportResult = {
+	--[[
+		The private server ID of the reserved server that the player(s) are being teleported to.
+
+		[Learn More](https://create.roblox.com/docs/reference/engine/classes/TeleportAsyncResult#PrivateServerId)
+	]]
 	read private_server_id: string,
+	--[[
+		The access code of the reserved server that the player(s) are being teleported to.
+
+		[Learn More](https://create.roblox.com/docs/reference/engine/classes/TeleportAsyncResult#ReservedServerAccessCode)
+	]]
 	read access_code: string,
 }
 
 type BaseTeleportInfo<RS, AC, JI> = {
 	--[[
 		Flag to indicate if a reserved server should be
-		allocated and the players should then be teleported to
+		allocated and the player(s) should then be teleported to
 		the allocated server.
 
 		[Learn More](https://create.roblox.com/docs/reference/engine/classes/TeleportOptions#ShouldReserveServer)
@@ -53,17 +72,16 @@ type BaseTeleportInfo<RS, AC, JI> = {
 	jobid: JI,
 }
 
-type TeleportInfoWithResult =
+--[[
+	Optional input parameters to Safe Teleport.
+
+	[Learn More](https://create.roblox.com/docs/reference/engine/classes/TeleportOptions)
+]]
+export type TeleportInfo =
+	| BaseTeleportInfo<nil, nil, string>
 	| BaseTeleportInfo<nil, string, nil>
 	| BaseTeleportInfo<true, nil, nil>
-
-type TeleportInfoWithoutResult =
-	| BaseTeleportInfo<nil, string, nil>
 	| BaseTeleportInfo<nil, nil, nil>
-
-export type TeleportInfo =
-	| TeleportInfoWithoutResult
-	| TeleportInfoWithResult
 
 type SafeTeleportPrototype = {
 	__call:
@@ -71,16 +89,28 @@ type SafeTeleportPrototype = {
 			safe_teleport: SafeTeleport, placeid: number, players_or_player: {Player} | Player
 		) -> boolean)
 		& ((
-			safe_teleport: SafeTeleport, placeid: number, players_or_player: {Player} | Player, info: TeleportInfoWithoutResult
-		) -> boolean)
-		& ((
-			safe_teleport: SafeTeleport, placeid: number, players_or_player: {Player} | Player, info: TeleportInfoWithResult
+			safe_teleport: SafeTeleport, placeid: number, players_or_player: {Player} | Player, info: TeleportInfo
 		) -> (boolean, TeleportResult))
 }
 
+--[[
+	Wrapper for [`TeleportService:TeleportAsync()`](https://create.roblox.com/docs/reference/engine/classes/TeleportService#TeleportAsync) with automatic retries, and a better typed API.
+]]
 type SafeTeleport = setmetatable<{
+	--[[
+		Amount of times Safe Teleport should attempt to teleport before giving up.
+		(Default: 5)
+	]]
 	attempt_limit: number,
+	--[[
+		Time in seconds between teleport attempts by Safe Teleport.
+		(Default: 1)
+	]]
 	retry_delay: number,
+	--[[
+		Time in seconds Safe Teleport should wait before retrying a teleport, if [`TeleportService`](https://create.roblox.com/docs/reference/engine/classes/TeleportService) became [flooded](https://create.roblox.com/docs/reference/engine/enums/TeleportResult#Flooded).
+		(Default: 15)
+	]]
 	flood_delay: number,
 }, SafeTeleportPrototype>
 
@@ -140,7 +170,9 @@ function safe_teleport_mt.__call(safe_teleport, placeid, players_or_player, info
 			options.ServerInstanceId = info.jobid
 		end
 
-		options:SetTeleportData(info.data :: any)
+		if info.data then
+			options:SetTeleportData(info.data)
+		end
 		return TELEPORT(placeid, players, options)
 	else
 		return TELEPORT(placeid, players)
