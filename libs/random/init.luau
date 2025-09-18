@@ -39,7 +39,7 @@ type RandomSpec<TS = nil, TV = nil, NV = nil, V = nil, F = nil, I = nil, MI = ni
 		Returns a pseudorandom number uniformly distributed over `[min, max]`.
 	]]
 	float: F,
-	__index: MI, -- if this isnt here the solver has a seizure
+	__index: MI, -- if this isn't here the solver has a seizure
 }
 
 type RandomPrototype = RandomSpec<
