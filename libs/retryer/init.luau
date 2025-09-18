@@ -9,6 +9,12 @@ local cross = require("@libs/cross")
 
 local WAIT = cross.wait
 
+local function INSURE_MAX_RETRIES_GREATER_THAN_ONE(max_retries: number)
+	if max_retries <= 1 then
+		error("[RETRYER]: max_retries cannot be less than 2")
+	end
+end
+
 local retryer = {}
 
 --[[
@@ -23,6 +29,7 @@ function retryer.retry<A..., R...>(
 	f: (A...) -> (R...),
 	...: A...
 ): (boolean, R...)
+	INSURE_MAX_RETRIES_GREATER_THAN_ONE(max_retries)
 	local results: { any } = { pcall(f, ...) }
 	local success = results[1]
 
@@ -34,7 +41,7 @@ function retryer.retry<A..., R...>(
 			results = { pcall(f, ...) }
 			success = results[1]
 			attempts += 1
-		until success or attempts == max_retries
+		until attempts == max_retries or success
 	end
 	return success, table.unpack(results, 2)
 end
@@ -103,6 +110,7 @@ function retryer.delay<A..., R...>(
 	f: (A...) -> (R...),
 	...: A...
 ): (boolean, R...)
+	INSURE_MAX_RETRIES_GREATER_THAN_ONE(max_retries)
 	local results: { any } = { pcall(f, ...) }
 	local success = results[1]
 
@@ -134,6 +142,7 @@ function retryer.exponent<A..., R...>(
 	f: (A...) -> (R...),
 	...: A...
 ): (boolean, R...)
+	INSURE_MAX_RETRIES_GREATER_THAN_ONE(max_retries)
 	local results: { any } = { pcall(f, ...) }
 	local success = results[1]
 

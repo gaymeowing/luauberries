@@ -1,13 +1,18 @@
 local testkit = require("../../testkit")
-local retryer = require("./init")
+local retryer = require("@libs/retryer")
 
-local TEST, CASE, CHECK, FINISH, SKIP = testkit.test()
+local TEST, CASE, CHECK, FINISH = testkit.test()
+local NOOP = function() end
 local ATTEMPTS = 0
+
+local function ENDS_WITH(s: string, ends_with: string): boolean
+	return string.sub(s, #s - #ends_with + 1, #s) == ends_with
+end
 
 local function meower(kitty: string, catter: string): (string, string)
 	ATTEMPTS += 1
 
-	if ATTEMPTS % 2 or ATTEMPTS == 1 then
+	if ATTEMPTS % 2 ~= 0 or ATTEMPTS == 2 then
 		error("lmao")
 	end
 
@@ -15,72 +20,77 @@ local function meower(kitty: string, catter: string): (string, string)
 end
 
 TEST("retryer", function()
-	if true then
-		return
-	end
-
-	do CASE("__call")
-		local success1, ret1_1, ret1_2 = retryer(1, meower, "meow", "mrrow")	
-		local success2, ret2_1, ret2_2 = retryer(5, meower, "meow", "mrrow")
+	do CASE("retry errors if max_retries is 1")
+		local success, retryer_error = pcall(retryer.retry, 1, NOOP)
 
 		CHECK(
-			success1 == false and ret1_1 == "lmao" and ret1_2 == nil and
+			success == false and
+			ENDS_WITH(retryer_error, "[RETRYER]: max_retries cannot be less than 2")
+		)
+	end
+
+	do CASE("delay errors if max_retries is 1")
+		local success, retryer_error = pcall(retryer.delay, 2, 1, NOOP)
+
+		CHECK(
+			success == false and
+			ENDS_WITH(retryer_error, "[RETRYER]: max_retries cannot be less than 2")
+		)
+	end
+
+	do CASE("exponent errors if max_retries is 1")
+		local success, retryer_error = pcall(retryer.exponent, 2, 2, 1, NOOP)
+
+		CHECK(
+			success == false and
+			ENDS_WITH(retryer_error, "[RETRYER]: max_retries cannot be less than 2")
+		)
+	end
+
+	do CASE("retry")
+		local success1, ret1_1, ret1_2 = retryer.retry(2, meower, "meow", "mrrow")
+		local success2, ret2_1, ret2_2 = retryer.retry(4, meower, "meow", "mrrow")
+
+		CHECK(
+			success1 == false and ENDS_WITH(ret1_1, "lmao") and ret1_2 == nil and
 			success2 == true and ret2_1 == "meow :3" and ret2_2 == "mrrow 🐈"
 		)
 	end
 
 	do CASE("delay")
 		ATTEMPTS = 0
-		local success1, ret1_1, ret1_2 = retryer.delay(2, 1, meower, "meow", "mrrow")	
-		local success2, ret2_1, ret2_2 = retryer.delay(2, 5, meower, "meow", "mrrow")
+		local success1, ret1_1, ret1_2 = retryer.delay(2, 2, meower, "meow", "mrrow")
+		local success2, ret2_1, ret2_2 = retryer.delay(2, 4, meower, "meow", "mrrow")
 
 		CHECK(
-			success1 == false and ret1_1 == "lmao" and ret1_2 == nil and
+			success1 == false and ENDS_WITH(ret1_1, "lmao") and ret1_2 == nil and
 			success2 == true and ret2_1 == "meow :3" and ret2_2 == "mrrow 🐈"
 		)
 	end
 
-	do CASE("exp")
+	do CASE("exponent")
 		ATTEMPTS = 0
-		local success1, ret1_1, ret1_2 = retryer.exp(2, .5, 1, meower, "meow", "mrrow")	
-		local success2, ret2_1, ret2_2 = retryer.exp(2, .5, 5, meower, "meow", "mrrow")
+		local success1, ret1_1, ret1_2 = retryer.exponent(2, .5, 2, meower, "meow", "mrrow")
+		local success2, ret2_1, ret2_2 = retryer.exponent(2, .5, 4, meower, "meow", "mrrow")
 
 		CHECK(
-			success1 == false and ret1_1 == "lmao" and ret1_2 == nil and
+			success1 == false and ENDS_WITH(ret1_1, "lmao") and ret1_2 == nil and
 			success2 == true and ret2_1 == "meow :3" and ret2_2 == "mrrow 🐈"
 		)
 	end
 
-	do CASE("inf")
-		ATTEMPTS = 0
-		local ret1_1, ret1_2 = retryer.inf(meower, "meow", "mrrow")	
-		local ret2_1, ret2_2 = retryer.inf(meower, "meow", "mrrow")
-
-		CHECK(
-			ret1_1 == "meow :3" and ret1_2 == "mrrow 🐈" and
-			ret2_1 == "meow :3" and ret2_2 == "mrrow 🐈"
-		)
+	do CASE("infinite")
+		local ret1_1, ret1_2 = retryer.infinite(meower, "meow", "mrrow")
+		CHECK(ret1_1 == "meow :3" and ret1_2 == "mrrow 🐈")
 	end
 
-	do CASE("infdelay")
-		ATTEMPTS = 0
-		local ret1_1, ret1_2 = retryer.infdelay(1, meower, "meow", "mrrow")	
-		local ret2_1, ret2_2 = retryer.infdelay(1, meower, "meow", "mrrow")
-
-		CHECK(
-			ret1_1 == "meow :3" and ret1_2 == "mrrow 🐈" and
-			ret2_1 == "meow :3" and ret2_2 == "mrrow 🐈"
-		)
+	do CASE("infinite_delay")
+		local ret1_1, ret1_2 = retryer.infinite_delay(1, meower, "meow", "mrrow")
+		CHECK(ret1_1 == "meow :3" and ret1_2 == "mrrow 🐈")
 	end
 
-	do CASE("infexp")
-		ATTEMPTS = 0
-		local ret1_1, ret1_2 = retryer.infexp(1, .5, meower, "meow", "mrrow")	
-		local ret2_1, ret2_2 = retryer.infexp(1, .5, meower, "meow", "mrrow")
-
-		CHECK(
-			ret1_1 == "meow :3" and ret1_2 == "mrrow 🐈" and
-			ret2_1 == "meow :3" and ret2_2 == "mrrow 🐈"
-		)
+	do CASE("infinite_exponent")
+		local ret1_1, ret1_2 = retryer.infinite_exponent(1, .5, meower, "meow", "mrrow")
+		CHECK(ret1_1 == "meow :3" and ret1_2 == "mrrow 🐈")
 	end
 end)
