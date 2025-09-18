@@ -256,5 +256,10 @@ for _, lib in LIBS_TO_RELEASE_FOR do
 	print(`{lib} release: {url}`)
 end
 
-fs.removeDir(RELEASE_DIR)
-fs.removeDir(DIST_DIR)
+if fs.isDir(RELEASE_DIR) then
+	fs.removeDir(RELEASE_DIR)
+end
+
+if fs.isDir(DIST_DIR) then
+	fs.removeDir(DIST_DIR)
+end
