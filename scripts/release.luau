@@ -44,6 +44,17 @@ local function upload_to_release(tag: string, file_name: string, content: string
 	summon(`gh release upload {tag} {file_name} --clobber`)
 end
 
+-- returns (author, title, body)
+local function get_commit_info(commit: string): (string, string, string)
+	local commit_info = summon(`git show -s --format='%an %B' {commit}`)
+	local author_end = string.find(commit_info, " ") :: number
+	local title_end = string.find(commit_info, "\n") :: number
+
+	return string.sub(commit_info, 1, author_end - 1),
+		string.sub(commit_info, author_end + 1, title_end - 1),
+		string.sub(commit_info, title_end + 1, #commit_info)
+end
+
 local function REMOVE_FILE_IF_EXISTS(path: string)
 	if fs.isFile(path) then
 		fs.removeFile(path)
@@ -184,7 +195,6 @@ for _, lib in LIBS_TO_RELEASE_FOR do
 	local version = libinfo(lib).version
 	local release_tag = `{lib}@{version}`
 
-	-- making sure theres not already a release for this library
 	if summon(`gh release view {release_tag}`, nil, true) then
 		continue
 	end
@@ -231,11 +241,7 @@ for _, lib in LIBS_TO_RELEASE_FOR do
 	end
 
 	for _, commit in commits do
-		local author, title = string.match(
-			summon(`git show -s --format='%an %f' {commit}`), "(%w+) ([%w%p]+)\n"
-		)
-		title = string.gsub(title :: any, "%-", " ")
-
+		local author, title, body = get_commit_info(commit)
 		table.insert(notes, `* {title} by @{author_fix(author :: any)} in [{commit}]({BASE_COMMIT_URL}{commit})`)
 	end
 
