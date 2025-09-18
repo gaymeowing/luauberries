@@ -9,7 +9,7 @@ type SetState<V> = (v: V) -> ()
 
 type MinMaxMethod<S, MIN, MAX, R> = (set_state: SetState<S>, min: MIN, max: MAX, seed: S) -> R
 
-type Method<S, V, R> = (set_state: SetState<S>, v: V, seed: S) -> R
+type Method<S, V, R...> = (set_state: SetState<S>, v: V, seed: S) -> R...
 
 --[[
 	Generates pseudorandom numbers, vectors, and directions.
@@ -109,13 +109,13 @@ local function SET_STATE(random: Random)
 	random.state = state
 end
 
-local function CREATE_CLASS_METHOD<V, R>(f: Method<Random, V, R>): (Random, V) -> R
+local function CREATE_CLASS_METHOD<V, R...>(f: Method<Random, V, R...>): (Random, V) -> R...
 	return function(random, v)
 		return f(SET_STATE, v, random)
 	end
 end
 
-local function CREATE_METHOD<V, R>(f: Method<number, V, R>): (V, number?) -> R
+local function CREATE_METHOD<V, R...>(f: Method<number, V, R...>): (V, number?) -> R...
 	return function(v, seed)
 		return f(SET_GSTATE, v, seed or SEED)
 	end
@@ -187,13 +187,8 @@ end
 local function VECTOR<S>(
 	set_state: SetState<S>, min: vector?, max: vector?, state: S
 ): vector
-	if not max then
-		max = DEFAULT_MAX_VECTOR
-	end
-
-	if not min then
-		min = DEFAULT_MIN_VECTOR
-	end
+	max = max or DEFAULT_MAX_VECTOR
+	min = min or DEFAULT_MIN_VECTOR
 
 	return vector.create(
 		FLOAT(set_state, min.x, max.x, state),
@@ -231,8 +226,9 @@ local random_prototype: RandomPrototype = {
 	integer = CREATE_CLASS_METHOD_RANGE(EXPORT_INTEGER),
 	float = CREATE_CLASS_METHOD_RANGE(EXPORT_FLOAT),
 	vector = CREATE_CLASS_METHOD_RANGE(VECTOR),
-	shuffle = CREATE_CLASS_METHOD(SHUFFLE),
-	value = CREATE_CLASS_METHOD(VALUE),
+	shuffle = CREATE_CLASS_METHOD(SHUFFLE) :: any,
+	value = CREATE_CLASS_METHOD(VALUE) :: any,
+	__index = nil :: any,
 }
 
 local random: Export = {
