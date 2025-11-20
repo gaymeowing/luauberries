@@ -7,7 +7,7 @@
 local cross = require("@libs/cross")
 
 local function callback_handler<A..., R...>(
-	f: (A...) -> R..., threads: { thread }, 
+	f: (A...) -> R..., threads: { thread },
 	main_thread: thread, ...: A...
 )
 	local callback_thread = coroutine.running()
@@ -18,12 +18,12 @@ local function callback_handler<A..., R...>(
 			local success = coroutine.close(thread)
 
 			if not success then
-				warn(debug.traceback(thread, "[RACE] an error occured whilst trying to close thread"))
+				warn(debug.traceback(thread, "[RACE]: an error occured whilst trying to close thread"))
 			end
 		end
 	end
-	
-	cross.spawn(main_thread, table.unpack(results, 1))
+
+	cross.spawn(main_thread, table.unpack(results))
 end
 
 local function race<A..., R...>(callbacks: { (A...) -> R... }, ...: A...): R...
