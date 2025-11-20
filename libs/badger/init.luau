@@ -9,31 +9,39 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
 export type Badge = {
-	index: number,
-	id: number,
+	read index: number,
+	read id: number,
+}
+
+type AwardInfo = {
+	start_of_last_attempt: number,
+	read badgeid: number,
+	read userid: number,
+	attempts: number,
 }
 
 type PlayerInfo = {
-	threads_waiting_for_id: { [number]: { thread } },
-	threads_waiting_for_all: { thread }?,
-	owned: { [number]: true? },
-	has_been_destroyed: true?,
-	ids_to_check: { number },
+	read owned: { [Badge]: true? },
+	start_of_latest_fetch: number,
+	ids_to_check: { number }?,
 	amount_checked: number,
-	check_success: boolean,
-	running: boolean,
-	thread: thread,
-	start: number,
+	fetch_success: boolean,
+	fetch_thread: thread?,
+	read userid: number,
+	fetching: boolean,
 }
 
-local THREADS_WAITING_FOR_PLAYER_INFO = {} :: { [Player]: { thread }? }
+local THREADS_WAITING_FOR_PLAYER_INFO = {} :: { [number]: { thread }? }
 local CHECK_BADGES = BadgeService.CheckUserBadgesAsync
-local PLAYER_INFOS = {} :: { [Player]: PlayerInfo }
+local NON_FETCHING_PLAYER_INFOS = {} :: { PlayerInfo }
+local PLAYER_INFOS = {} :: { [number]: PlayerInfo }
+local REMOVING_PLAYER_INFOS = {} :: { PlayerInfo }
 local ID_TO_BADGE = {} :: { [number]: Badge? }
+local FREE_FETCH_THREADS = {} :: { thread }
+local AWARD_QUEUE = {} :: { AwardInfo }
 local AWARD = BadgeService.AwardBadge
 local IDS = {} :: { number }
-local PAIR_INCREMENT = 9
-local NULL = nil :: any
+local CHECK_IDS_INCREMENT = 9
 --[[
 	BadgeService:CheckUserBadgesAsync() allows 5 requests per player each minute
 	so every 12 seconds we should be trying to fetch
@@ -41,19 +49,30 @@ local NULL = nil :: any
 local FETCH_DELAY = 12
 local TOTAL_IDS = 0
 
-local function GET_INFO(player: Player): PlayerInfo?
-	local info = PLAYER_INFOS[player]
+local function SWAP_REMOVE(t: { any }, index: number)
+	if index ~= 1 then
+		local len = #t
+		t[index] = t[len]
+		t[len] = nil
+	else
+		t[1] = nil
+	end
+end
 
-	if not info then
-		local threads = THREADS_WAITING_FOR_PLAYER_INFO[player]
+local function GET_INFO(player: Player): PlayerInfo?
+	local userid = player.UserId
+	local info = PLAYER_INFOS[userid]
+
+	if player.Parent == Players and not info then
+		local threads = THREADS_WAITING_FOR_PLAYER_INFO[userid]
 		local thread = coroutine.running()
 
 		if threads then
 			table.insert(threads, thread)
 		else
-			THREADS_WAITING_FOR_PLAYER_INFO[player] = { thread }
+			THREADS_WAITING_FOR_PLAYER_INFO[userid] = { thread }
 		end
-		info = coroutine.yield()
+		return coroutine.yield()
 	end
 
 	return info
@@ -80,14 +99,12 @@ local function GET_IDS_OWNED(player: Player): { [number]: true? }?
 	end
 end
 
-local badger_mt = {}
+local badger = {}
 
 --[[
 	Gets or creates a badge symbol for the given Id.
-
-	WARNING: Badge symbols will not be gc'd, but why would you need them to gc anyways...
 ]]
-function badger_mt.__call<S>(self: S, id: number): Badge
+function badger.get(id: number): Badge
 	local badge_for_id = ID_TO_BADGE[id]
 
 	if badge_for_id then
@@ -97,7 +114,7 @@ function badger_mt.__call<S>(self: S, id: number): Badge
 
 		local badge = table.freeze({
 			index = TOTAL_IDS,
-			id = id
+			id = id,
 		})
 
 		ID_TO_BADGE[id] = badge
@@ -105,8 +122,6 @@ function badger_mt.__call<S>(self: S, id: number): Badge
 		return badge
 	end
 end
-
-local badger = setmetatable({}, badger_mt)
 
 --[[
 	Returns a Set of all the ids for each badge a player currently has, otherwise returns nil if unsuccessful.
@@ -151,21 +166,8 @@ function badger.has(player: Player, badge: Badge): boolean
 	local info = GET_INFO(player)
 
 	if info then
-		local id = badge.id
-
-		if info.amount_checked >= badge.index then
-			return info.owned[id] :: any
-		else
-			local waitlists = info.threads_waiting_for_id
-			local threads = waitlists[id]
-
-			if threads then
-				table.insert(threads, coroutine.running())
-			else
-				waitlists[id] = { coroutine.running() }
-			end
-			return coroutine.yield()
-		end
+		return info.amount_checked >= badge.index
+			and info.owned[badge] ~= nil
 	else
 		return false
 	end
@@ -198,113 +200,135 @@ do
 		end
 	end
 
-	local function fetch_thread_runner(player: Player, info: PlayerInfo)
-		local threads_waiting_for_id = info.threads_waiting_for_id
-		local ids_to_check = info.ids_to_check
-		local userid = player.UserId
-		local owned = info.owned
+	local function fetch_thread_runner(info: PlayerInfo)
+		while true do
+			local ids_to_check = info.ids_to_check :: { number }
+			local userid = info.userid
 
-		while not info.has_been_destroyed do
-			info.start = os.clock()
+			info.start_of_latest_fetch = os.clock()
 			local success, awarded: { number } = pcall(
 				CHECK_BADGES, BadgeService, userid, info.ids_to_check
 			)
 
 			if success then
-				info.amount_checked += #ids_to_check
+				local amount_checked = info.amount_checked + #ids_to_check
+				local owned = info.owned
 
 				for _, id in ids_to_check do
-					local threads_waiting = threads_waiting_for_id[id]
-					local is_awarded = table.find(awarded, id) ~= nil
-
-					if threads_waiting then
-						bulk_defer_threads(threads_waiting, is_awarded)
-						threads_waiting_for_id[id] = nil
+					if table.find(awarded, id) ~= nil then
+						owned[ID_TO_BADGE[id] :: any] = true
 					end
+				end
 
-					if is_awarded then
-						owned[id] = true
-					end
+				if amount_checked == TOTAL_IDS then
+					table.insert(FREE_FETCH_THREADS, info.fetch_thread :: thread)
+					info.fetch_thread = nil
+					info.ids_to_check = nil
 				end
 			end
 
-			info.check_success = success
-			info.running = false
-			coroutine.yield()
+			table.insert(NON_FETCHING_PLAYER_INFOS, info)
+			info.fetch_success = success
+			info.fetching = false
+			info = coroutine.yield()
+		end
+	end
+
+	local function GET_OR_CREATE_FETCH_THREAD(info: PlayerInfo)
+		local fetch_thread = FREE_FETCH_THREADS[1]
+
+		if fetch_thread then
+			info.fetch_thread = fetch_thread
+			task.defer(fetch_thread, info)
+		else
+			local thread = task.defer(fetch_thread_runner, info)
+			info.fetch_thread = thread
 		end
 	end
 
 	Players.PlayerRemoving:Connect(function(player)
-		local info = PLAYER_INFOS[player]
-		PLAYER_INFOS[player] = nil
+		local userid = player.UserId
+		local info = PLAYER_INFOS[userid]
+		PLAYER_INFOS[userid] = nil
 
-		while info.running do
-			task.wait()
+		if info.fetching then
+			table.insert(REMOVING_PLAYER_INFOS, info)
+		else
+			table.insert(FREE_FETCH_THREADS, info.fetch_thread :: thread)
 		end
-
-		local threads_waiting_for_all = info.threads_waiting_for_all
-
-		if threads_waiting_for_all then
-			bulk_defer_threads(threads_waiting_for_all, nil)
-		end
-
-		for _, threads in info.threads_waiting_for_id do
-			bulk_defer_threads(threads, false)
-		end
-
-		task.cancel(info.thread)
 	end)
 
 	Players.PlayerAdded:Connect(function(player)
-		local threads_waiting = THREADS_WAITING_FOR_PLAYER_INFO[player]
+		local userid = player.UserId
+		local threads_waiting = THREADS_WAITING_FOR_PLAYER_INFO[userid]
 		local info: PlayerInfo = {
-			ids_to_check = table.move(IDS, 1, 1 + PAIR_INCREMENT, 1, {}),
-			threads_waiting_for_id = {},
-			check_success = false,
+			ids_to_check = table.move(IDS, 1, 1 + CHECK_IDS_INCREMENT, 1, {}),
+			start_of_latest_fetch = nil :: any,
+			fetch_thread = nil :: any,
+			fetch_success = false,
 			amount_checked = 0,
-			start = os.clock(),
-			running = true,
-			thread = NULL,
+			fetching = true,
+			userid = userid,
 			owned = {},
 		}
-		PLAYER_INFOS[player] = info
-		info.thread = task.defer(fetch_thread_runner, player, info)
+
+		GET_OR_CREATE_FETCH_THREAD(info)
+		PLAYER_INFOS[userid] = info
 
 		if threads_waiting then
-			THREADS_WAITING_FOR_PLAYER_INFO[player] = nil
+			THREADS_WAITING_FOR_PLAYER_INFO[userid] = nil
 			bulk_defer_threads(threads_waiting, info)
 		end
 	end)
 
 	RunService.PostSimulation:Connect(function()
-		for player, info in PLAYER_INFOS do
+		local now = os.clock()
+
+		for index, info in NON_FETCHING_PLAYER_INFOS do
 			local amount_checked = info.amount_checked
-			local check_start = amount_checked + 1
 
-			--[[
-				1: the thread isn't doing work to fetch info
-				2: the thread hasn't successfully fetched if the player owns every badge
-				3: it must be 12 seconds since the previous fetch started
-			--]]
 			if
-				not info.running and
-				amount_checked ~= TOTAL_IDS and
-				os.clock() - info.start >= FETCH_DELAY
+				amount_checked ~= TOTAL_IDS -- the thread hasn't successfully fetched if the player owns every badge
+				and now - info.start_of_latest_fetch >= FETCH_DELAY -- it must be 12 seconds since the previous fetch started
 			then
-				local check_end = check_start + PAIR_INCREMENT
+				local check_start = amount_checked + 1
+				local check_end = check_start + CHECK_IDS_INCREMENT
 				local ids_to_check = info.ids_to_check
+				local fetch_thread = info.fetch_thread
 
-				table.clear(ids_to_check)
-				info.ids_to_check = table.move(
-					IDS, check_start, check_end, 1, ids_to_check
-				)
+				info.fetching = true
 
-				task.defer(info.thread)
+				if ids_to_check then
+					table.clear(ids_to_check)
+					info.ids_to_check = table.move(IDS, check_start, check_end, 1, ids_to_check)
+				else
+					info.ids_to_check = table.move(IDS, check_start, check_end, 1, {})
+				end
+
+				if fetch_thread then
+					task.defer(fetch_thread, info)
+				else
+					GET_OR_CREATE_FETCH_THREAD(info)
+				end
+
+				SWAP_REMOVE(NON_FETCHING_PLAYER_INFOS, index)
 			end
+		end
+
+		for index, info in REMOVING_PLAYER_INFOS do
+			if info.fetching then
+				continue
+			end
+
+			table.insert(FREE_FETCH_THREADS, info.fetch_thread :: thread)
+			SWAP_REMOVE(REMOVING_PLAYER_INFOS, index)
+		end
+
+		for _, info in AWARD_QUEUE do
+
 		end
 	end)
 
-	table.freeze(badger_mt)
 	table.freeze(badger)
 
 end
