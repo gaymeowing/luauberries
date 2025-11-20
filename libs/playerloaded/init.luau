@@ -21,16 +21,17 @@ local CALLBACKS = {} :: { PlayerLoadedCallback }
 local REMOTE_NAME = "PlayerLoaded"
 local LOADED_COUNT = 0
 
-local function SWAP_REMOVE<V>(t: { V }, v: V)
+local function SWAP_REMOVE(t: { unknown }, v: unknown)
 	local index = table.find(t, v)
 
 	if index then
-		if index ~= 1 then
-			local len = #t
-			t[index] = t[len]
-			t[len] = nil
+		local length = #t
+
+		if index ~= length then
+			t[index] = t[length]
+			t[length] = nil
 		else
-			t[1] = nil
+			t[length] = nil
 		end
 	end
 end
