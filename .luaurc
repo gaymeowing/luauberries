@@ -1,14 +1,19 @@
 {
-	"globals": [ "_RUNTIME" ],
-	"languageMode": "strict",
-	"aliases": {
-		"lune": "~/.lune/.typedefs/0.9.3/",
-		"test": "./testkit.luau",
-		"scripts": "./scripts",
-		"libs": "./libs"
-	},
-	"lint": {
-		"MultiLineStatement": false,
-		"LocalShadow": false
-	}
+    "globals": [
+        "_RUNTIME"
+    ],
+    "languageMode": "strict",
+    "lint": {
+        "MultiLineStatement": false,
+        "LocalShadow": false
+    },
+    "aliases": {
+        "lint": "~/.lute/typedefs/0.1.0/lint",
+        "lune": "~/.lune/.typedefs/0.9.3/",
+        "scripts": "./scripts",
+        "libs": "./libs",
+        "test": "./testkit",
+        "std": "~/.lute/typedefs/0.1.0/std",
+        "lute": "~/.lute/typedefs/0.1.0/lute"
+    }
 }

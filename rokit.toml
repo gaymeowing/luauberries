@@ -5,3 +5,4 @@
 
 [tools]
 lune = "lune-org/lune@0.10.2"
+lute = "luau-lang/lute@0.1.0-nightly.20260106"
