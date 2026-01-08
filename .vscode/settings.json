@@ -4,4 +4,31 @@
 	"luau-lsp.bytecode.vectorType": "vector",
 	"explorer.sortOrderLexicographicOptions": "upper",
 	"explorer.sortOrder": "foldersNestsFiles",
+	"cSpell.words": [
+		"codepoints",
+		"macbook",
+		"pcall",
+		"randomseed",
+		"stylua"
+	],
+	"cSpell.languageSettings": [
+        {
+            "name": "lua",
+            "languageId": [ "luau", "lua" ],
+            "patterns": [
+                {
+                    "name": "short-comment",
+                    "pattern": "(?<![-])--.*"
+                },
+                {
+                    "name": "long-comment",
+                    "pattern": "(?<![-])--\\[(=*)\\[(.|\n)*?\\]\\1\\]"
+                }
+            ],
+            "includeRegExpList": [
+                "short-comment",
+                "long-comment"
+            ]
+        }
+    ],
 }

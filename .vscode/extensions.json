@@ -1,6 +1,7 @@
 {
 	"recommendations": [
+		"streetsidesoftware.code-spell-checker",
 		"JohnnyMorganz.luau-lsp",
-		"stkb.rewrap"
+		"stkb.rewrap",
 	],
 }
