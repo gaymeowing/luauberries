@@ -1,4 +1,4 @@
-local testkit = require("../../testkit")
+local testkit = require("@testkit")
 local retryer = require("@libs/retryer")
 
 local TEST, CASE, CHECK, FINISH = testkit.test()

@@ -1,4 +1,4 @@
-local testkit = require("../../testkit")
+local testkit = require("@testkit")
 local linkedlist = require("./init")
 
 local TEST, CASE, CHECK, FINISH = testkit.test()

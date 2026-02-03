@@ -1,4 +1,4 @@
-local testkit = require("../../testkit")
+local testkit = require("@testkit")
 local rbxdeeplink = require("./init")
 local url = require("../url")
 

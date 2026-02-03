@@ -1,4 +1,4 @@
-local testkit = require("../../testkit")
+local testkit = require("@testkit")
 local url = require("./init")
 
 local TEST, CASE, CHECK, FINISH = testkit.test()
@@ -33,7 +33,7 @@ TEST("url", function()
 			meow = "mrrp",
 			mrrp = "meow"
 		})
-		
+
 		CHECK(query == "?meow=mrrp&mrrp=meow")
 	end
 

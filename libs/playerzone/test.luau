@@ -1,4 +1,4 @@
-local testkit = require("../../testkit")
+local testkit = require("@testkit")
 -- local playerzone = require("init")
 
 local TEST, CASE, CHECK, FINISH = testkit.test()
@@ -22,14 +22,14 @@ TEST("player zone", function()
 	end
 
 	do CASE("insert")
-		
+
 	end
 
 	do CASE("remove")
-		
+
 	end
 
 	do CASE("detect")
-		
+
 	end
 end)

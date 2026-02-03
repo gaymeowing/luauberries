@@ -1,4 +1,4 @@
-local testkit = require("../../testkit")
+local testkit = require("@testkit")
 local random = require("./init")
 
 local TEST, CASE, CHECK, FINISH = testkit.test()
@@ -94,7 +94,7 @@ TEST("random", function()
 			if table.find(skip_fields, f)  then
 				continue
 			end
-		
+
 			CASE(`class:{name}`)
 			local cf = (c :: any)[name] :: (...any) -> any
 

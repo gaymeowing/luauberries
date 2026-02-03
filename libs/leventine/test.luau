@@ -1,4 +1,4 @@
-local testkit = require("../../testkit")
+local testkit = require("@testkit")
 local leventine = require("./init")
 
 local TEST, CASE, CHECK, FINISH = testkit.test()
@@ -17,46 +17,46 @@ TEST("leventine", function()
 	end
 
 	do CASE("score_x")
-		
+
 	end
 
 	do CASE("score_x_sensitive")
-		
+
 	end
 
 	do CASE("map")
-		
+
 	end
 
 	do CASE("map_min_score")
-		
+
 	end
 
 	do CASE("map_case_sensitive")
-		
+
 	end
 
 	do CASE("closest")
-		
+
 	end
 
 	do CASE("closest_case_sensitive")
-		
+
 	end
 
 	do CASE("has_match_false")
-		
+
 	end
 
 	do CASE("has_match_sensitive_false")
-		
+
 	end
 
 	do CASE("has_match_true")
-		
+
 	end
 
 	do CASE("has_match_sensitive_true")
-		
+
 	end
 end)
