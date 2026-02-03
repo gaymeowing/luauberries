@@ -1,4 +1,5 @@
 {
+    "luau-lsp.fflags.enableNewSolver": true,
 	"luau-lsp.completion.autocompleteEnd": true,
 	"luau-lsp.require.mode": "relativeToFile",
 	"luau-lsp.bytecode.vectorType": "vector",
