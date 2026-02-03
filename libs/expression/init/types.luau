@@ -63,7 +63,6 @@ export type Error =
 	| BaseError<"SolveStackHasTooManyValuesLeft">
 	| BaseOffsetError<"InvalidClosingParenthese">
 	| BaseOffsetError<"MoreThanOneDecimalPoint">
-	| BaseOffsetError<"ExpectedValueBeforePow">
 	| BaseOffsetError<"InvalidCodepoint">
 	| BaseOffsetError<"MalformedNumber">
 	| BaseOffsetError<"TooManyDigits">
