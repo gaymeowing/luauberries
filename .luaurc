@@ -8,12 +8,13 @@
         "LocalShadow": false
     },
     "aliases": {
+        "lute": "~/.lute/typedefs/0.1.0/lute",
         "lint": "~/.lute/typedefs/0.1.0/lint",
-        "lune": "~/.lune/.typedefs/0.9.3/",
-        "scripts": "./scripts",
-        "libs": "./libs",
-        "test": "./testkit",
         "std": "~/.lute/typedefs/0.1.0/std",
-        "lute": "~/.lute/typedefs/0.1.0/lute"
+        "lune": "~/.lune/.typedefs/0.9.3/",
+        "testkit": "./testkit",
+        "scripts": "./scripts",
+        "test": "@std/test",
+        "libs": "./libs",
     }
 }
