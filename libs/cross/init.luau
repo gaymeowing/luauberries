@@ -22,25 +22,30 @@ local RUNTIME: Runtime = if game and workspace then
 
 local STD_TASK_EXISTS, STD_TASK = pcall(require, "@std/task")
 local WARN: typeof(cross_warn) = warn or cross_warn
-local TASK: typeof(cross_task) = if task then 
-		task 
+local TASK: typeof(cross_task) = if task then
+		task
 	elseif STD_TASK_EXISTS then
 		STD_TASK
-	elseif RUNTIME == "Lune" then 
-		(require)("@lune/task") 
-	else 
+	elseif RUNTIME == "Lune" then
+		(require)("@lune/task")
+	else
 		cross_task
 
 do
+	local can_set_G = true
 
 	local function SET_G(key: string, value: unknown)
-		if not _G[key] then
+		if can_set_G and not _G[key] then
 			_G[key] = value
 		end
 	end
 
 	if not _RUNTIME then
-		SET_G("_RUNTIME", RUNTIME)
+		local success = pcall(SET_G, "_RUNTIME", RUNTIME)
+
+		if not success then
+			can_set_G = false
+		end
 		_RUNTIME = RUNTIME
 	end
 

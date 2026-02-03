@@ -1,4 +1,4 @@
-local testkit = require("../../testkit")
+local testkit = require("@testkit")
 local cross = require("./init")
 
 local TEST, CASE, CHECK, FINISH, SKIP = testkit.test()
@@ -9,7 +9,7 @@ TEST("cross", function()
 			task.cancel == cross.cancel and
 			task.spawn == cross.spawn and
 			task.defer == cross.defer and
-			task.wait == cross.wait and 
+			task.wait == cross.wait and
 			_RUNTIME == cross.runtime and
 			warn == cross.warn
 		)
@@ -82,7 +82,7 @@ TEST("cross", function()
 		end)
 
 		if thread_started then
-			CHECK(false)	
+			CHECK(false)
 		end
 
 		task.wait(2)
@@ -99,7 +99,7 @@ TEST("cross", function()
 		)
 
 		if args_str then
-			CHECK(false)	
+			CHECK(false)
 		end
 
 		task.wait(2)
